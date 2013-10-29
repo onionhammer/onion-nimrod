@@ -1,10 +1,16 @@
 #http://stackoverflow.com/questions/5630546/a-memory-efficient-sha1-implementation
 import unsigned, strutils
 
+## Fields
 const sha_digest_size = 20
 
+## Templates & Procedures
 template rol(value, bits: uint32): uint32 {.immediate.} = 
     (value shl bits) or (value shr (32 - bits))
+
+proc clearBuffer(w: var array[0 .. 80-1, uint32]) =
+    for i in 0 .. 15:
+        w[i] = 0
 
 proc digitToHex(digest: openarray[uint32]): string =
     result = ""
@@ -13,7 +19,7 @@ proc digitToHex(digest: openarray[uint32]): string =
         let value = digest[i]
         result.add(ord(value).toHex(8).toLower())
 
-proc innerHash(result: var array[0 .. sha_digest_size-1,uint32], w: var array[0..80-1, uint32]) =
+proc innerHash(result, w: var openarray[uint32]) =
     var
         a = result[0]
         b = result[1]
@@ -23,37 +29,38 @@ proc innerHash(result: var array[0 .. sha_digest_size-1,uint32], w: var array[0.
 
     var round = 0
 
-    template sha1(func: expr, val: uint32): stmt =
-        let t = rol(a, 5) + func + e + val + w[round]
+    template sha1(func, val: expr): stmt =
+        let t = rol(a, 5) + func + e + uint32(val) + w[round]
         e = d
         d = c
         c = rol(b, 30)
         b = a
         a = t
 
+    template process(body: stmt): stmt =
+        w[round] = rol(w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16], 1)
+        body
+        inc(round)
+
     while round < 16:
         sha1((b and c) or (not b and d), 0x5a827999)
         inc(round)
 
     while round < 20:
-        w[round] = rol(w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16], 1)
-        sha1((b and c) or (not b and d), 0x5a827999)
-        inc(round)
+        process:
+            sha1((b and c) or (not b and d), 0x5a827999)
 
     while round < 40:
-        w[round] = rol(w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16], 1)
-        sha1(b xor c xor d, 0x6ed9eba1)
-        inc(round)
+        process:
+            sha1(b xor c xor d, 0x6ed9eba1)
 
     while round < 60:
-        w[round] = rol(w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16], 1);
-        sha1((b and c) or (b and d) or (c and d), uint32(0x8f1bbcdc))
-        inc(round)
+        process:
+            sha1((b and c) or (b and d) or (c and d), 0x8f1bbcdc)
 
     while round < 80:
-        w[round] = rol((w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16]), 1);
-        sha1(b xor c xor d, uint32(0xca62c1d6))
-        inc(round)
+        process:
+            sha1(b xor c xor d, 0xca62c1d6)
 
     result[0] += a
     result[1] += b
@@ -61,34 +68,31 @@ proc innerHash(result: var array[0 .. sha_digest_size-1,uint32], w: var array[0.
     result[3] += d
     result[4] += e
 
-proc clearBuffer(w: var array[0..80-1, uint32]) =
-    for i in 0..15:
-        w[i] = 0
-
-proc calc(src: string): array[0 .. sha_digest_size-1,uint32] =
-    #init result
+proc sha1*(src: string): array[0 .. sha_digest_size-1,uint32] =
+    #Initialize result
     result[0] = uint32(0x67452301)
     result[1] = uint32(0xefcdab89)
     result[2] = uint32(0x98badcfe)
     result[3] = uint32(0x10325476)
     result[4] = uint32(0xc3d2e1f0)
 
-    #round buffer
-    var w: array[0..80-1, uint32]
-    let byteLen = src.len
+    #Create w buffer
+    var w: array[0 .. 80-1, uint32]
 
+    let byteLen  = src.len
     let endBlock = byteLen - 64
+
     var endCurrentBlock = 0
-    var currentBlock = 0
+    var currentBlock    = 0
 
     while currentBlock <= endBlock:
         endCurrentBlock = currentBlock + 64
 
         for i in countup(0, endCurrentBlock-1, 4):
             w[i] = uint32(src[currentBlock+3]) or
-                (uint32(src[currentBlock+2]) shl 8) or
-                (uint32(src[currentBlock+1]) shl 16) or
-                (uint32(src[currentBlock]) shl 24)
+                   uint32(src[currentBlock+2]) shl 8 or
+                   uint32(src[currentBlock+1]) shl 16 or
+                   uint32(src[currentBlock])   shl 24
 
         innerHash(result, w)
 
@@ -119,13 +123,20 @@ proc calc(src: string): array[0 .. sha_digest_size-1,uint32] =
     innerHash(result, w)
 
 when isMainModule:
+
+    var result: string
     
-    let data       = "JhWAN0ZTmRS2maaZmDfLyQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-    let sha1Result = "e3571af6b12bcb49c87012a5bb5fdd2bada788a4"
+    #test sha1 - standard length input
+    const data       = "JhWAN0ZTmRS2maaZmDfLyQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+    const sha1Result = "e3571af6b12bcb49c87012a5bb5fdd2bada788a4"
 
-    #test sha
-    var result = calc(data)
+    result = sha1(data).digitToHex()
 
-    echo "assert ", result.digitToHex(), "is valid"
-    assert(result.digitToHex() == sha1Result, "SHA1 result did not match")
+    echo "assert ", result, " is valid"
+    assert(result == sha1Result, "SHA1 result did not match")
+    echo "pass"
+
+    #test sha1 - shorter input
+    result = sha1("shorter").digitToHex()
+    assert(result == "c966b463b67c6424fefebcfcd475817e379065c7", "SHA1 result did not match")
     echo "pass"
