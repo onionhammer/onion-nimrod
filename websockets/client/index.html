@@ -1,0 +1,30 @@
+<!-- http://localhost/websock/ -->
+<script>
+var ws = null;
+
+function connect() {
+    ws = new WebSocket("ws://localhost:8080/app");
+    setTimeout(bindEvents, 1000);
+    setReadyState();
+}
+
+function bindEvents() {
+    ws.onopen = function() {
+        log('onopen called');
+        setReadyState();
+    };
+}
+
+function setReadyState() {
+    log('ws.readyState: ' + ws.readyState);
+}
+
+function log(msg) {
+    if(document.body) {
+        var text = document.createTextNode(msg);
+        document.body.appendChild(text);
+    }
+}
+
+connect();
+</script>
