@@ -3,111 +3,129 @@ import unsigned, strutils
 
 const sha_digest_size = 20
 
+template rol(value, bits: uint32): uint32 {.immediate.} = 
+    (value shl bits) or (value shr (32 - bits))
 
-template leftrotate(value, bits: uint32): uint32 {.immediate.} = 
-    (value shl bits) or (value shr (32 - (bits)))
-
-
-iterator chunks(message: string): array[0..16-1, char] =
-    for i in countup(0, message.len, 16):
-        var result: array[0..16-1, char]
-
-        for j in 0 .. result.len-1:
-            result[j] = message[i]
-
-        yield result
-
-
-proc digetToHex(digest: array[0..sha_digest_size-1, uint32]): string =
+proc digitToHex(digest: openarray[uint32]): string =
     result = ""
 
-    for i in countup(0, sha_digest_size, 4):
-        for j in 0..4:
-            result.add($digest[i*4+j])
+    for i in 0 .. int(sha_digest_size/4) - 1:
+        let value = digest[i]
+        result.add(ord(value).toHex(8).toLower())
 
-
-proc processBlock (message: string) : array[0..sha_digest_size-1, uint32] =
-
+proc innerHash(result: var array[0 .. sha_digest_size-1,uint32], w: var array[0..80-1, uint32]) =
     var
-        h0 = uint32(0x67452301)
-        h1 = uint32(0xEFCDAB89)
-        h2 = uint32(0x98BADCFE)
-        h3 = uint32(0x10325476)
-        h4 = uint32(0xC3D2E1F0)
+        a = result[0]
+        b = result[1]
+        c = result[2]
+        d = result[3]
+        e = result[4]
 
-    #Pre-processing:
-    #append the bit '1' to the message
-    #append 0 <= k < 512 bits '0', so that the resulting message length (in bits)
-    #   is congruent to 448 (mod 512)
-    #append length of message (before pre-processing), in bits, as 64-bit big-endian integer
+    var round = 0
 
-    #Process the message in successive 512-bit chunks:
-    #break message into 512-bit chunks
+    template sha1(func: expr, val: uint32): stmt =
+        let t = rol(a, 5) + func + e + val + w[round]
+        e = d
+        d = c
+        c = rol(b, 30)
+        b = a
+        a = t
 
-    for chunk in message.chunks:
-        #break chunk into sixteen 32-bit big-endian words w[i], 0 <= i <= 15
-        var w: array[0..16 - 1, uint32]
+    while round < 16:
+        sha1((b and c) or (not b and d), 0x5a827999)
+        inc(round)
 
-        echo chunk.len
+    while round < 20:
+        w[round] = rol(w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16], 1)
+        sha1((b and c) or (not b and d), 0x5a827999)
+        inc(round)
 
-        #Extend the sixteen 32-bit words into eighty 32-bit words:
-        for i in 0..15:
-            echo i*4, " ", i*4+1, " ", i*4+2, " ", i*4+3
-            w[i] = (w[i*4] shl 24) xor (w[i*4 + 1] shl 16) xor (w[i*4 + 2] shl 8) xor (w[i*4 + 3])
+    while round < 40:
+        w[round] = rol(w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16], 1)
+        sha1(b xor c xor d, 0x6ed9eba1)
+        inc(round)
 
-        #for i in 16 .. 79:
-        #    w[i] = leftrotate(w[i-3] xor w[i-8] xor w[i-14] xor w[i-16], 1)
+    while round < 60:
+        w[round] = rol(w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16], 1);
+        sha1((b and c) or (b and d) or (c and d), uint32(0x8f1bbcdc))
+        inc(round)
 
-        #Initialize hash value for this chunk:
-        var
-            a = h0
-            b = h1
-            c = h2
-            d = h3
-            e = h4
+    while round < 80:
+        w[round] = rol((w[round - 3] xor w[round - 8] xor w[round - 14] xor w[round - 16]), 1);
+        sha1(b xor c xor d, uint32(0xca62c1d6))
+        inc(round)
 
-        #Main loop:[37]
-        for i in 0 .. 79:
-            var k: uint32
-            var f: uint32
+    result[0] += a
+    result[1] += b
+    result[2] += c
+    result[3] += d
+    result[4] += e
 
-            if 0 <= i and i <= 19:
-                f = (b and c) or ((not b) and d)
-                k = uint32(0x5A827999)
-            elif 20 <= i and i <= 39:
-                f = b xor c xor d
-                k = uint32(0x6ED9EBA1)
-            elif 40 <= i and i <= 59:
-                f = (b and c) or (b and d) or (c and d) 
-                k = uint32(0x8F1BBCDC)
-            elif 60 <= i and i <= 79:
-                f = b xor c xor d
-                k = uint32(0xCA62C1D6)
+proc clearBuffer(w: var array[0..80-1, uint32]) =
+    for i in 0..15:
+        w[i] = 0
 
-            var temp = leftrotate(a, 5) + f + e + k + w[i]
-            e = d
-            d = c
-            c = leftrotate(b, 30)
-            b = a
-            a = temp
+proc calc(src: string): array[0 .. sha_digest_size-1,uint32] =
+    #init result
+    result[0] = uint32(0x67452301)
+    result[1] = uint32(0xefcdab89)
+    result[2] = uint32(0x98badcfe)
+    result[3] = uint32(0x10325476)
+    result[4] = uint32(0xc3d2e1f0)
 
-        #Add this chunk's hash to result so far:
-        h0 += a
-        h1 += b 
-        h2 += c
-        h3 += d
-        h4 += e
+    #round buffer
+    var w: array[0..80-1, uint32]
+    let byteLen = src.len
 
-    #Produce the final hash value (big-endian):
-    result[0] = h0
-    result[1] = h1
-    result[2] = h2
-    result[3] = h3
-    result[4] = h4
+    let endBlock = byteLen - 64
+    var endCurrentBlock = 0
+    var currentBlock = 0
+
+    while currentBlock <= endBlock:
+        endCurrentBlock = currentBlock + 64
+
+        for i in countup(0, endCurrentBlock-1, 4):
+            w[i] = uint32(src[currentBlock+3]) or
+                (uint32(src[currentBlock+2]) shl 8) or
+                (uint32(src[currentBlock+1]) shl 16) or
+                (uint32(src[currentBlock]) shl 24)
+
+        innerHash(result, w)
+
+    #Handle last and not full 64 byte block if existing
+    endCurrentBlock = byteLen - currentBlock
+
+    clearBuffer(w)
+
+    var lastBlockBytes = 0
+    while lastBlockBytes < endCurrentBlock:
+        let value = w[lastBlockBytes shr 2] or (
+            uint32(src[lastBlockBytes + currentBlock]) shl 
+            uint32((3 - (lastBlockBytes and 3)) shl 3)
+        )
+
+        w[lastBlockBytes shr 2] = value
+        inc(lastBlockBytes)
+
+    w[lastBlockBytes shr 2] = w[lastBlockBytes shr 2] or (
+        uint32(0x80) shl uint32((3 - (lastBlockBytes and 3)) shl 3)
+    )
+
+    if endCurrentBlock >= 56:
+        innerHash(result, w)
+        clearBuffer(w)
+
+    w[15] = uint32(byteLen shl 3)
+    innerHash(result, w)
 
 when isMainModule:
     
-    var data = "JhWAN0ZTmRS2maaZmDfLyQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-    var result = processBlock(data)
+    let data       = "JhWAN0ZTmRS2maaZmDfLyQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+    let sha1Result = "e3571af6b12bcb49c87012a5bb5fdd2bada788a4"
 
-    echo result.digetToHex()
+    #test sha
+    var result = calc(data)
+
+    echo "assert ", result.digitToHex(), "is valid"
+    assert(result.digitToHex() == sha1Result, "SHA1 result did not match")
+    echo "pass"
