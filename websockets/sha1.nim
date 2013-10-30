@@ -58,16 +58,7 @@ proc toHex*(digest: SHA1Digest): string =
     return $arr
 
 #http://www.adp-gmbh.ch/cpp/common/base64.html
-proc toBase64*(digest: SHA1Digest): string =
-
-    var arr: array[0 .. sha_digest_size*2, char]
-
-    for hashByte in 0..19:
-        echo digest[hashByte]
-        arr[hashByte shl 1] = char((digest[hashByte] shr 4))
-        arr[(hashByte shl 1) + 1] = char((digest[hashByte]))
-
-    return encode($arr)
+proc toBase64*(digest: SHA1Digest): string = base64.encode(digest)
 
 
 proc init(result: var SHA1State) =
