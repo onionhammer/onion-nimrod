@@ -24,12 +24,12 @@
 #SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ## Imports
-import unsigned, strutils
+import unsigned, strutils, base64
 
 
 ## Fields
 const sha_digest_size = 20
-
+const sha_base64_size = 28
 
 ## Types
 type
@@ -46,7 +46,7 @@ proc clearBuffer[T](w: var openarray[T], len = 16) =
         w[i] = T(0)
 
 
-proc `$`*(digest: SHA1Digest): string = 
+proc toHex*(digest: SHA1Digest): string = 
     const digits = "0123456789abcdef"
 
     var arr: array[0 .. sha_digest_size*2, char]
@@ -56,6 +56,18 @@ proc `$`*(digest: SHA1Digest): string =
         arr[(hashByte shl 1) + 1] = digits[(digest[hashByte]) and 0xf]
 
     return $arr
+
+#http://www.adp-gmbh.ch/cpp/common/base64.html
+proc toBase64*(digest: SHA1Digest): string =
+
+    var arr: array[0 .. sha_digest_size*2, char]
+
+    for hashByte in 0..19:
+        echo digest[hashByte]
+        arr[hashByte shl 1] = char((digest[hashByte] shr 4))
+        arr[(hashByte shl 1) + 1] = char((digest[hashByte]))
+
+    return encode($arr)
 
 
 proc init(result: var SHA1State) =
@@ -195,16 +207,21 @@ when isMainModule:
     var result: string
 
     #test sha1 - 60 char input
-    result = ($compute("JhWAN0ZTmRS2maaZmDfLyQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11")).toLower()
+    result = compute("JhWAN0ZTmRS2maaZmDfLyQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toHex()
     echo result
     assert(result == "e3571af6b12bcb49c87012a5bb5fdd2bada788a4", "SHA1 result did not match")
 
     #test sha1 - longer input
-    result = ($compute("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz")).toLower()
+    result = compute("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz").toHex()
     echo result
     assert(result == "f2090afe4177d6f288072a474804327d0f481ada", "SHA1 result did not match")
 
     #test sha1 - shorter input
-    result = ($compute("shorter")).toLower()
+    result = compute("shorter").toHex()
     echo result
     assert(result == "c966b463b67c6424fefebcfcd475817e379065c7", "SHA1 result did not match")
+
+    #test base64 encoding
+    result = compute("dGhlIHNhbXBsZSBub25jZQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toBase64()
+    echo result
+    assert(result == "s3pPLMBiTxaQ9kYGzzhZRbK+xOo=", "SHA1 base64 result did not match")

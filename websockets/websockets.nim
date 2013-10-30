@@ -1,4 +1,4 @@
-import sockets, strutils, strtabs, parseutils, asyncio, hashes, sha1
+import sockets, strutils, strtabs, parseutils, asyncio, hashes, sha1, base64
 
 ##Fields
 const magicString = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -31,7 +31,10 @@ proc handshake(client: TSocket, header: PStringTable) : bool =
   var clientKey = header["Sec-WebSocket-Key"]
 
   ## build accept string
-  var accept = $sha1.compute(clientKey & magicString)
+  var accept = encode($sha1.compute(clientKey & magicString))
+
+  echo clientKey & magicString
+  echo accept
 
   ## build response
   sendResponse(client, protocol, accept)
