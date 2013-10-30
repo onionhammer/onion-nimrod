@@ -37,8 +37,6 @@ type
   SHA1State   = array[0 .. 5-1, uint32]
   SHA1Buffer  = array[0 .. 80-1, uint32]
   SHA1Digest* = array[0 .. sha_digest_size-1, uint8]
-  SHA1Context* {.final.} = object
-    buffer*: string
 
 ## Templates & Procedures
 proc clearBuffer[T](w: var openarray[T], len = 16) =
@@ -121,14 +119,16 @@ proc innerHash(state: var SHA1State, w: var SHA1Buffer) =
   wrap state[3], d
   wrap state[4], e
 
-proc compute*(src: SHA1Context, byteLen: int, state: var SHA1State): SHA1Digest =
+template computeInternal(src: expr): stmt {.immediate.} =
   #Initialize state
+  var state: SHA1State
   init(state)
 
   #Create w buffer
   var w: SHA1Buffer
 
   #Loop through all complete 64byte blocks.
+  let byteLen         = src.len
   let endOfFullBlocks = byteLen - 64
   var endCurrentBlock = 0
   var currentBlock    = 0
@@ -138,10 +138,10 @@ proc compute*(src: SHA1Context, byteLen: int, state: var SHA1State): SHA1Digest 
 
     var i = 0
     while currentBlock < endCurrentBlock:
-      w[i] = uint32(src.buffer[currentBlock+3]) or
-             uint32(src.buffer[currentBlock+2]) shl 8'u32 or
-             uint32(src.buffer[currentBlock+1]) shl 16'u32 or
-             uint32(src.buffer[currentBlock])   shl 24'u32
+      w[i] = uint32(src[currentBlock+3]) or
+             uint32(src[currentBlock+2]) shl 8'u32 or
+             uint32(src[currentBlock+1]) shl 16'u32 or
+             uint32(src[currentBlock])   shl 24'u32
       currentBlock += 4
       inc(i)
 
@@ -154,7 +154,7 @@ proc compute*(src: SHA1Context, byteLen: int, state: var SHA1State): SHA1Digest 
 
   while lastBlockBytes < endCurrentBlock:
 
-    var value = uint32(src.buffer[lastBlockBytes + currentBlock]) shl
+    var value = uint32(src[lastBlockBytes + currentBlock]) shl
                 ((3'u32 - (lastBlockBytes and 3)) shl 3)
 
     w[lastBlockBytes shr 2] = w[lastBlockBytes shr 2] or value
@@ -175,14 +175,21 @@ proc compute*(src: SHA1Context, byteLen: int, state: var SHA1State): SHA1Digest 
   for i in 0 .. sha_digest_size-1:
     result[i] = uint8((int(state[i shr 2]) shr ((3-(i and 3)) * 8)) and 255)
 
-proc compute*(src: string): SHA1Digest =
-  let context = SHA1Context(buffer: src)
-  var state: SHA1State
+proc compute*(src: string) : SHA1Digest =
+  ## Calculate SHA1 from input string
+  computeInternal(src)
 
-  return compute(context, src.len, state)
+proc compute*(src: openarray[TInteger|char]) : SHA1Digest =
+  ## Calculate SHA1 from input array
+  computeInternal(src)
 
 when isMainModule:
   var result: string
+
+  #test sha1 - char array input
+  result = compute(@['s','h','o','r','t','e','r']).toHex()
+  echo result
+  assert(result == "c966b463b67c6424fefebcfcd475817e379065c7", "SHA1 result did not match")
 
   #test sha1 - 60 char input
   result = compute("JhWAN0ZTmRS2maaZmDfLyQ==258EAFA5-E914-47DA-95CA-C5AB0DC85B11").toHex()
