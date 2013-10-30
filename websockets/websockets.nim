@@ -1,3 +1,8 @@
+##Reference:
+# https://developer.mozilla.org/en-US/docs/WebSockets
+# https://developer.mozilla.org/en-US/docs/WebSockets/Writing_WebSocket_server
+# https://github.com/warmcat/libwebsockets/tree/master/lib
+
 import sockets, strutils, strtabs, parseutils, asyncio, hashes, sha1
 
 ##Fields
@@ -6,6 +11,7 @@ const wwwNL       = "\r\L"
 
 ##Types
 type
+  TWebSocketConnectedCallback* = proc(client: TWebSocket): bool
   TWebSocket* = object of TObject
     server: TSocket
     bufLen: int
@@ -32,9 +38,6 @@ proc handshake(client: TSocket, header: PStringTable) : bool =
 
   ## build accept string
   var accept = sha1.compute(clientKey & magicString).toBase64()
-
-  echo clientKey & magicString
-  echo accept
 
   ## build response
   sendResponse(client, protocol, accept)
@@ -86,16 +89,17 @@ proc recvBuffer(ws: var TWebSocket, L: int) =
     ws.bufLen = L
     ws.input  = newString(L)
   if L > 0 and recv(ws.client, cstring(ws.input), L) != L:
-    websocketError("could ont read all data")
+    websocketError("could not read all data")
   setLen(ws.input, L)
+
+proc send*(ws: TWebSocket, message: string) =
+  ws.client.send(message)
 
 proc open*(ws: var TWebSocket, port = TPort(8080), address = "127.0.0.1") =
   ## opens a connection
   ws.bufLen = 4000
   ws.input  = newString(ws.bufLen)
   ws.server = socket()
-
-  new(ws.client) #Initialize a socket for `next`
 
   if ws.server == InvalidSocket: websocketError("could not open websocket")
 
@@ -127,17 +131,15 @@ proc next*(ws: var TWebSocket, timeout = -1): bool =
 
     return true
 
-proc run*(handleRequest: proc(client: TSocket, input: string): bool {.nimcall.}, 
-          port = TPort(8080)) =
-  
+proc run*(onConnected: TWebSocketConnectedCallback, port = TPort(8080)) =
+  ## runs a synchronous websocket listener
   var stop = false
   var ws: TWebSocket
   ws.open(port)
 
   while not stop:
     if ws.next():
-      stop = handleRequest(ws.client, ws.input)
-      ws.client.close()
+      stop = onConnected(ws)
 
   ws.close()
 
@@ -148,8 +150,10 @@ when isMainModule:
   #Test module
   echo "Running websocket test"
   
-  run(proc (client: TSocket, input: string): bool = 
+  run(proc (client: TWebSocket): bool =
+    client.send("Hello world!" & wwwNL)
     echo "client connected"
+    #client.close()
   )
 
   echo "Socket closed"

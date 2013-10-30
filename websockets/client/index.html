@@ -10,20 +10,21 @@ function connect() {
 
 function bindEvents() {
     ws.onopen = function() {
-        log('onopen called');
+        console.log('onopen', arguments);
         setReadyState();
+    };
+
+    ws.onmessage = function() {
+        console.log('onmessage', arguments);
+    };
+
+    ws.onclose = function() {
+        console.log('onclose', arguments);
     };
 }
 
 function setReadyState() {
-    log('ws.readyState: ' + ws.readyState);
-}
-
-function log(msg) {
-    if(document.body) {
-        var text = document.createTextNode(msg);
-        document.body.appendChild(text);
-    }
+    console.log('ws.readyState: ' + ws.readyState);
 }
 
 connect();
