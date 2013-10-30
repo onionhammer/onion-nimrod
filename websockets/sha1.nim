@@ -38,7 +38,7 @@ type
   SHA1Buffer  = array[0 .. 80-1, uint32]
   SHA1Digest* = array[0 .. sha_digest_size-1, uint8]
   SHA1Context* {.final.} = object
-    buffer*: seq[char]
+    buffer*: string
 
 ## Templates & Procedures
 proc clearBuffer[T](w: var openarray[T], len = 16) =
@@ -176,12 +176,8 @@ proc compute*(src: SHA1Context, byteLen: int, state: var SHA1State): SHA1Digest 
     result[i] = uint8((int(state[i shr 2]) shr ((3-(i and 3)) * 8)) and 255)
 
 proc compute*(src: string): SHA1Digest =
-  var context: SHA1Context
+  let context = SHA1Context(buffer: src)
   var state: SHA1State
-  newSeq(context.buffer, src.len)
-
-  for i in 0 .. src.len-1:
-    context.buffer[i] = src[i]
 
   return compute(context, src.len, state)
 
