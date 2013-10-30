@@ -1,4 +1,4 @@
-import sockets, strutils, strtabs, parseutils, asyncio, hashes
+import sockets, strutils, strtabs, parseutils, asyncio, hashes, sha1
 
 ##Fields
 const magicString = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -30,13 +30,11 @@ proc handshake(client: TSocket, header: PStringTable) : bool =
   var protocol  = header["Sec-WebSocket-Protocol"]
   var clientKey = header["Sec-WebSocket-Key"]
 
-  echo protocol
-  echo clientKey, magicString
-  #for key,val in header.pairs:
-  #  echo key, ": ", val
+  ## build accept string
+  var accept = $sha1.compute(clientKey & magicString)
 
   ## build response
-  sendResponse(client, protocol, "")
+  sendResponse(client, protocol, accept)
   
   return true
 
