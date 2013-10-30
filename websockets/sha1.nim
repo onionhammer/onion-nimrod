@@ -31,7 +31,6 @@ import unsigned, strutils, base64
 
 ## Fields
 const sha_digest_size = 20
-const sha_base64_size = 28
 
 ## Types
 type
