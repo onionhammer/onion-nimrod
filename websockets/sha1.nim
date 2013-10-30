@@ -23,8 +23,7 @@
 #(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-#http://stackoverflow.com/questions/5630546/a-memory-efficient-sha1-implementation
+## Imports
 import unsigned, strutils
 
 
@@ -34,8 +33,8 @@ const sha_digest_size = 20
 
 ## Types
 type
-    SHA1State = array[0 .. 5-1, uint32]
-    SHA1Buffer = array[0 .. 80-1, uint32]
+    SHA1State   = array[0 .. 5-1, uint32]
+    SHA1Buffer  = array[0 .. 80-1, uint32]
     SHA1Digest* = array[0 .. sha_digest_size-1, uint8]
     SHA1Context* {.final.} = object
         buffer*: seq[char]
@@ -60,11 +59,11 @@ proc `$`*(digest: SHA1Digest): string =
 
 
 proc init(result: var SHA1State) =
-    result[0] = uint32(0x67452301)
-    result[1] = uint32(0xefcdab89)
-    result[2] = uint32(0x98badcfe)
-    result[3] = uint32(0x10325476)
-    result[4] = uint32(0xc3d2e1f0)
+    result[0] = 0x67452301'u32
+    result[1] = 0xefcdab89'u32
+    result[2] = 0x98badcfe'u32
+    result[3] = 0x10325476'u32
+    result[4] = 0xc3d2e1f0'u32
 
 
 proc innerHash(state: var SHA1State, w: var SHA1Buffer) =
@@ -80,8 +79,8 @@ proc innerHash(state: var SHA1State, w: var SHA1Buffer) =
     template rot(value, bits: uint32): uint32 {.immediate.} = 
         (value shl bits) or (value shr (32 - bits))
 
-    template sha1(func, val: expr): stmt =
-        let t = rot(a, 5) + func + e + uint32(val) + w[round]
+    template sha1(func, val: uint32): stmt =
+        let t = rot(a, 5) + func + e + val + w[round]
         e = d
         d = c
         c = rot(b, 30)
@@ -98,24 +97,24 @@ proc innerHash(state: var SHA1State, w: var SHA1Buffer) =
         dest = v
 
     while round < 16:
-        sha1((b and c) or (not b and d), 0x5a827999)
+        sha1((b and c) or (not b and d), 0x5a827999'u32)
         inc(round)
 
     while round < 20:
         process:
-            sha1((b and c) or (not b and d), 0x5a827999)
+            sha1((b and c) or (not b and d), 0x5a827999'u32)
 
     while round < 40:
         process:
-            sha1(b xor c xor d, 0x6ed9eba1)
+            sha1(b xor c xor d, 0x6ed9eba1'u32)
 
     while round < 60:
         process:
-            sha1((b and c) or (b and d) or (c and d), 0x8f1bbcdc)
+            sha1((b and c) or (b and d) or (c and d), 0x8f1bbcdc'u32)
 
     while round < 80:
         process:
-            sha1(b xor c xor d, 0xca62c1d6)
+            sha1(b xor c xor d, 0xca62c1d6'u32)
 
     wrap state[0], a
     wrap state[1], b
@@ -143,9 +142,9 @@ proc compute*(src: SHA1Context, byteLen: int, state: var SHA1State): SHA1Digest 
         var i = 0
         while currentBlock < endCurrentBlock:
             w[i] = uint32(src.buffer[currentBlock+3]) or
-                   uint32(src.buffer[currentBlock+2]) shl 8 or
-                   uint32(src.buffer[currentBlock+1]) shl 16 or
-                   uint32(src.buffer[currentBlock])   shl 24
+                   uint32(src.buffer[currentBlock+2]) shl 8'u32 or
+                   uint32(src.buffer[currentBlock+1]) shl 16'u32 or
+                   uint32(src.buffer[currentBlock])   shl 24'u32
             currentBlock += 4
             inc(i)
 
@@ -159,20 +158,20 @@ proc compute*(src: SHA1Context, byteLen: int, state: var SHA1State): SHA1Digest 
     while lastBlockBytes < endCurrentBlock:
 
         var value = uint32(src.buffer[lastBlockBytes + currentBlock]) shl
-                    uint32((3 - (lastBlockBytes and 3)) shl 3)
+                    ((3'u32 - (lastBlockBytes and 3)) shl 3)
 
         w[lastBlockBytes shr 2] = w[lastBlockBytes shr 2] or value
         inc(lastBlockBytes)
 
     w[lastBlockBytes shr 2] = w[lastBlockBytes shr 2] or (
-        uint32(0x80) shl uint32((3 - (lastBlockBytes and 3)) shl 3)
+        0x80'u32 shl ((3'u32 - (lastBlockBytes and 3)) shl 3)
     )
 
     if endCurrentBlock >= 56:
         innerHash(state, w)
         clearBuffer(w)
 
-    w[15] = uint32(byteLen shl 3)
+    w[15] = uint32(byteLen) shl 3
     innerHash(state, w)
 
     # Store hash in result pointer, and make sure we get in in the correct order on both endian models.
