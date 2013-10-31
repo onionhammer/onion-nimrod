@@ -90,37 +90,41 @@ proc recvBuffer(ws: var TWebSocket, L: int) =
     websocketError("could not read all data")
   setLen(ws.input, L)
 
-proc send*(ws: TWebSocket, message: string) =
+proc send*(ws: TWebSocket, inMessage: string) =
   # Wrap message (TODO - break out)
-  var header: string
-
+  var buffer: string
+  var message = inMessage
   let len = message.len
+
   if len <= 125:
-    header    = newString(2)
-    header[0] = char(129)
-    header[1] = char(len)
+    buffer    = newString(2 + len)
+    buffer[0] = char(129)
+    buffer[1] = char(len)
+    copyMem(addr(buffer[2]), addr(message[0]), len)
 
   elif len <= 65535:
-    header    = newString(4)
-    header[0] = char(129)
-    header[1] = char(126)
-    header[2] = char((len shr 8) and 255)
-    header[3] = char(len and 255)
+    buffer    = newString(4 + len)
+    buffer[0] = char(129)
+    buffer[1] = char(126)
+    buffer[2] = char((len shr 8) and 255)
+    buffer[3] = char(len and 255)
+    copyMem(addr(buffer[4]), addr(message[0]), len)
 
   else:
-    header    = newString(10)
-    header[0] = char(129)
-    header[1] = char(127)
-    header[2] = char((len shr 56) and 255)
-    header[3] = char((len shr 48) and 255)
-    header[4] = char((len shr 40) and 255)
-    header[5] = char((len shr 32) and 255)
-    header[6] = char((len shr 24) and 255)
-    header[7] = char((len shr 16) and 255)
-    header[8] = char((len shr 8) and 255)
-    header[9] = char(len and 255)
+    buffer    = newString(10 + len)
+    buffer[0] = char(129)
+    buffer[1] = char(127)
+    buffer[2] = char((len shr 56) and 255)
+    buffer[3] = char((len shr 48) and 255)
+    buffer[4] = char((len shr 40) and 255)
+    buffer[5] = char((len shr 32) and 255)
+    buffer[6] = char((len shr 24) and 255)
+    buffer[7] = char((len shr 16) and 255)
+    buffer[8] = char((len shr 8) and 255)
+    buffer[9] = char(len and 255)
+    copyMem(addr(buffer[10]), addr(message[0]), len)
 
-  ws.socket.send(header & message)
+  ws.socket.send(buffer)
 
 proc open*(ws: var TWebSocket, port = TPort(8080), address = "127.0.0.1") =
   ## opens a connection
@@ -175,7 +179,9 @@ when isMainModule:
   echo "Running websocket test"
 
   proc onConnected(client: TWebSocket): bool =
-    client.send("Hello world!" & wwwNL)
+    client.send("Hello world 1")
+    client.send("Hello world 2")
+    client.send("Hello world 3")
     echo "client connected"
     #client.socket.close()
   

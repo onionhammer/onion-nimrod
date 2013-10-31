@@ -39,9 +39,8 @@ type
   SHA1Digest* = array[0 .. sha_digest_size-1, uint8]
 
 ## Templates & Procedures
-proc clearBuffer[T](w: var openarray[T], len = 16) =
-  for i in 0 .. len-1:
-    w[i] = T(0)
+template clearBuffer(w: SHA1Buffer, len = 16) =
+  zeroMem(addr(w), len * sizeof(uint32))
 
 proc toHex*(digest: SHA1Digest): string = 
   const digits = "0123456789abcdef"
