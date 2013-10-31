@@ -91,7 +91,36 @@ proc recvBuffer(ws: var TWebSocket, L: int) =
   setLen(ws.input, L)
 
 proc send*(ws: TWebSocket, message: string) =
-  ws.socket.send(message)
+  # Wrap message (TODO - break out)
+  var header = newString(10)
+  var startInd: int
+
+  header[0] = char(129)
+  let len = message.len
+  if len <= 125:
+    header[1] = char(len)
+    startInd = 2
+
+  elif len <= 65535:
+    header[1] = char(126)
+    header[2] = char((len shr 8) and 255)
+    header[3] = char(len and 255)
+    startInd = 4
+
+  else:
+    header[1] = char(127)
+    header[2] = char((len shr 56) and 255)
+    header[3] = char((len shr 48) and 255)
+    header[4] = char((len shr 40) and 255)
+    header[5] = char((len shr 32) and 255)
+    header[6] = char((len shr 24) and 255)
+    header[7] = char((len shr 16) and 255)
+    header[8] = char((len shr 8) and 255)
+    header[9] = char(len and 255)
+    startInd = 10
+
+  var buffer = cstring(header.substr(0, startInd-1) & message)
+  discard ws.socket.send(buffer, buffer.len)
 
 proc open*(ws: var TWebSocket, port = TPort(8080), address = "127.0.0.1") =
   ## opens a connection
