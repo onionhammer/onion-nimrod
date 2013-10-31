@@ -10,16 +10,16 @@ function connect() {
 
 function bindEvents() {
     ws.onopen = function() {
-        console.log('onopen', arguments);
+        console.log('onopen ' + new Date(), arguments);
         setReadyState();
     };
 
     ws.onmessage = function() {
-        console.log('onmessage', arguments);
+        console.log('onmessage ' + new Date(), arguments);
     };
 
     ws.onclose = function() {
-        console.log('onclose', arguments);
+        console.log('onclose ' + new Date(), arguments);
     };
 }
 

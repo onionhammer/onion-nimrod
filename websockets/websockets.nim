@@ -15,7 +15,7 @@ type
   TWebSocket* = object of TObject
     server: TSocket
     bufLen: int
-    client*: TSocket
+    socket*: TSocket
     input*: string  ## the input buffer
 
 type EWebSocket* = object of EIO
@@ -31,7 +31,7 @@ proc sendResponse(client: TSocket, protocol, accept: string) =
     client.send("Sec-WebSocket-Protocol: " & protocol & wwwNL)
   client.send(wwwNL)
 
-proc handshake(client: TSocket, header: PStringTable) : bool =
+proc handshake(client: TSocket, header: PStringTable) =
   ## validate request
   var protocol  = header["Sec-WebSocket-Protocol"]
   var clientKey = header["Sec-WebSocket-Key"]
@@ -41,8 +41,6 @@ proc handshake(client: TSocket, header: PStringTable) : bool =
 
   ## build response
   sendResponse(client, protocol, accept)
-  
-  return true
 
 proc parseHeader(client: TSocket, headers: var PStringTable) : bool =
   ## parse websocket connection header
@@ -88,12 +86,12 @@ proc recvBuffer(ws: var TWebSocket, L: int) =
   if L > ws.bufLen:
     ws.bufLen = L
     ws.input  = newString(L)
-  if L > 0 and recv(ws.client, cstring(ws.input), L) != L:
+  if L > 0 and recv(ws.socket, cstring(ws.input), L) != L:
     websocketError("could not read all data")
   setLen(ws.input, L)
 
 proc send*(ws: TWebSocket, message: string) =
-  ws.client.send(message)
+  ws.socket.send(message)
 
 proc open*(ws: var TWebSocket, port = TPort(8080), address = "127.0.0.1") =
   ## opens a connection
@@ -117,19 +115,18 @@ proc next*(ws: var TWebSocket, timeout = -1): bool =
   var rsocks = @[ws.server]
 
   if select(rsocks, timeout) == 1 and rsocks.len == 0:
-    new(ws.client)
-    accept(ws.server, ws.client)
-    
-    var headers = newStringTable(modeCaseInsensitive)
-    
-    #TODO - websocket handshake
-    if not parseHeader(ws.client, headers):
-      return false
+    block: #TODO - if rsock has server
+      new(ws.socket)
+      accept(ws.server, ws.socket)
+      
+      var headers = newStringTable(modeCaseInsensitive)
+      
+      #TODO - websocket handshake
+      if not parseHeader(ws.socket, headers):
+        return false
 
-    if not handshake(ws.client, headers):
-      return false
-
-    return true
+      handshake(ws.socket, headers)
+      return true
 
 proc run*(onConnected: TWebSocketConnectedCallback, port = TPort(8080)) =
   ## runs a synchronous websocket listener
@@ -141,20 +138,19 @@ proc run*(onConnected: TWebSocketConnectedCallback, port = TPort(8080)) =
     if ws.next():
       stop = onConnected(ws)
 
-  ws.close()
-
 
 ##Tests
 when isMainModule:
 
   #Test module
   echo "Running websocket test"
-  
-  run(proc (client: TWebSocket): bool =
+
+  proc onConnected(client: TWebSocket): bool =
     client.send("Hello world!" & wwwNL)
     echo "client connected"
-    #client.close()
-  )
+    #client.socket.close()
+  
+  run(onConnected)
 
   echo "Socket closed"
   
