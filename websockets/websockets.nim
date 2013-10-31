@@ -90,41 +90,38 @@ proc recvBuffer(ws: var TWebSocket, L: int) =
     websocketError("could not read all data")
   setLen(ws.input, L)
 
-proc send*(ws: TWebSocket, inMessage: string) =
-  # Wrap message (TODO - break out)
-  var buffer: string
-  var message = inMessage
+proc send*(ws: TWebSocket, message: string) =
+  ## Wrap message & send it
   let len = message.len
 
+  template put_header(buffer: string, size: int, body: stmt): stmt {.immediate.} =
+    var buffer = newString(size + len)
+    buffer[0] = char(129);
+    body
+    copyMem(addr(buffer[size]), cstring(message), len)
+    ws.socket.send(buffer)
+
   if len <= 125:
-    buffer    = newString(2 + len)
-    buffer[0] = char(129)
-    buffer[1] = char(len)
-    copyMem(addr(buffer[2]), addr(message[0]), len)
+    put_header(buffer, 2): 
+      buffer[1] = char(len)
 
   elif len <= 65535:
-    buffer    = newString(4 + len)
-    buffer[0] = char(129)
-    buffer[1] = char(126)
-    buffer[2] = char((len shr 8) and 255)
-    buffer[3] = char(len and 255)
-    copyMem(addr(buffer[4]), addr(message[0]), len)
+    put_header(buffer, 4):
+      buffer[1] = char(126)
+      buffer[2] = char((len shr 8) and 255)
+      buffer[3] = char(len and 255)
 
   else:
-    buffer    = newString(10 + len)
-    buffer[0] = char(129)
-    buffer[1] = char(127)
-    buffer[2] = char((len shr 56) and 255)
-    buffer[3] = char((len shr 48) and 255)
-    buffer[4] = char((len shr 40) and 255)
-    buffer[5] = char((len shr 32) and 255)
-    buffer[6] = char((len shr 24) and 255)
-    buffer[7] = char((len shr 16) and 255)
-    buffer[8] = char((len shr 8) and 255)
-    buffer[9] = char(len and 255)
-    copyMem(addr(buffer[10]), addr(message[0]), len)
-
-  ws.socket.send(buffer)
+    put_header(buffer, 10):
+      buffer[1] = char(127)
+      buffer[2] = char((len shr 56) and 255)
+      buffer[3] = char((len shr 48) and 255)
+      buffer[4] = char((len shr 40) and 255)
+      buffer[5] = char((len shr 32) and 255)
+      buffer[6] = char((len shr 24) and 255)
+      buffer[7] = char((len shr 16) and 255)
+      buffer[8] = char((len shr 8) and 255)
+      buffer[9] = char(len and 255)
 
 proc open*(ws: var TWebSocket, port = TPort(8080), address = "127.0.0.1") =
   ## opens a connection
