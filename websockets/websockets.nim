@@ -22,8 +22,10 @@ type
     socket*: TSocket
 
   TWebSocketServer* = object of TWebSocket
+    headers: PStringTable
+    rsocks: seq[TSocket]
     server: TSocket
-    buffer*: string ## the input buffer
+    buffer: cstring
 
 type EWebSocket* = object of EIO
 
@@ -35,15 +37,17 @@ proc sendResponse(client: TSocket, protocol, accept: string) =
   client.send("Upgrade: websocket" & wwwNL)
   client.send("Connection: Upgrade" & wwwNL)
   client.send("Sec-WebSocket-Accept: " & accept & wwwNL)
+
   if protocol != "":
     client.send("Sec-WebSocket-Protocol: " & protocol & wwwNL)
+
   client.send(wwwNL)
 
 
-proc handshake(client: TSocket, header: PStringTable) =
+proc handshake(client: TSocket, headers: PStringTable) =
   ## validate request
-  var protocol  = header["Sec-WebSocket-Protocol"]
-  var clientKey = header["Sec-WebSocket-Key"]
+  var protocol  = headers["Sec-WebSocket-Protocol"]
+  var clientKey = headers["Sec-WebSocket-Key"]
 
   ## build accept string
   var accept = sha1.compute(clientKey & magicString).toBase64()
@@ -54,15 +58,13 @@ proc handshake(client: TSocket, header: PStringTable) =
 
 proc parseUpgrade(client: TSocket, headers: var PStringTable) : bool =
   ## parse websocket connection header
-  var data = ""
-  client.readLine(data)
-  if data == "":
+  var header = ""
+  client.readLine(header)
+  
+  if header == "":
     client.close()
     return false
 
-  headers["path"] = data
-
-  var header = ""
   while true:
     client.readLine(header)
 
@@ -83,6 +85,8 @@ proc parseUpgrade(client: TSocket, headers: var PStringTable) : bool =
       client.close()
       return false
 
+  handshake(client, headers)
+
   return true
 
 
@@ -95,7 +99,7 @@ proc websocketError*(msg: string) {.noreturn.} =
 
 
 proc read(ws: TWebSocketServer, client: TWebSocket): string =
-  var buffer = cstring(ws.buffer)
+  var buffer = ws.buffer
   var read   = client.socket.recv(buffer, 2)
   var length = int(uint8(buffer[1]) and 127)
   
@@ -105,14 +109,14 @@ proc read(ws: TWebSocketServer, client: TWebSocket): string =
     length = 0 #Reset the length to 0
 
     let max = size * 8
-    for i in 0 .. size-1:
-      length += int(buffer[i]) shl int(max - (8 * (i+1)))
+    for i in 1 .. size:
+      length += int(buffer[i - 1]) shl (max - (i * 8))
 
   if   length == 126: readLength(2)
   elif length == 127: readLength(8)
 
   #Read the rest of the data being transmitted
-  read   = client.socket.recv(buffer, 4 + length, 0)
+  read   = client.socket.recv(buffer, length + 4, 0)
   result = newString(length)
 
   #Decode the buffer & copy into result
@@ -122,29 +126,29 @@ proc read(ws: TWebSocketServer, client: TWebSocket): string =
     inc(j)
 
 
-proc send*(ws: TWebSocket, message: string) =
+proc send*(ws: TWebSocketServer, client: TWebSocket, message: string) =
   ## Wrap message & send it
   let len = message.len
+  var buffer = ws.buffer
 
-  template put_header(buffer: string, size: int, body: stmt): stmt {.immediate.} =
-    var buffer = newString(size + len)
-    buffer[0] = char(129);
+  template put_header(size: int, body: stmt): stmt {.immediate.} =
+    buffer[0] = char(129)
     body
     copyMem(addr(buffer[size]), cstring(message), len)
-    ws.socket.send(buffer)
+    discard client.socket.send(buffer, size + len)
 
   if len <= 125:
-    put_header(buffer, 2): 
+    put_header 2:
       buffer[1] = char(len)
 
   elif len <= 65535:
-    put_header(buffer, 4):
+    put_header 4:
       buffer[1] = char(126)
       buffer[2] = char((len shr 8) and 255)
       buffer[3] = char(len and 255)
 
   else:
-    put_header(buffer, 10):
+    put_header 10:
       buffer[1] = char(127)
       buffer[2] = char((len shr 56) and 255)
       buffer[3] = char((len shr 48) and 255)
@@ -158,7 +162,7 @@ proc send*(ws: TWebSocket, message: string) =
 
 proc open*(ws: var TWebSocketServer, port = TPort(8080), address = "127.0.0.1") =
   ## opens a connection
-  ws.buffer = newString(4000)
+  ws.buffer = cstring(newString(4000))
   ws.server = socket()
 
   if ws.server == InvalidSocket: 
@@ -178,18 +182,16 @@ proc next*(ws: var TWebSocketServer,
            timeout = -1): bool =
   ## proceed to the first/next request. Waits ``timeout`` miliseconds for a
   ## request, if ``timeout`` is `-1` then this function will never time out.
-  var rsocks = @[ws.server]
 
-  if select(rsocks, timeout) == 1 and rsocks.len == 0:
+  ws.rsocks.add(ws.server)
+
+  if select(ws.rsocks, timeout) == 1 and ws.rsocks.len == 0:
     block: #TODO - if rsock has server (select not impl correctly)
       new(ws.socket)
       accept(ws.server, ws.socket)
       
-      var headers = newStringTable(modeCaseInsensitive)
-      
       #TODO - websocket handshake
-      if parseUpgrade(ws.socket, headers):
-        handshake(ws.socket, headers)
+      if parseUpgrade(ws.socket, ws.headers):
         onConnected(ws, TWebSocket(socket: ws.socket))
 
       return false
@@ -199,6 +201,8 @@ proc run*(onConnected: TWebSocketConnectedCallback, port = TPort(8080)) =
   ## runs a synchronous websocket listener
   var stop = false
   var ws: TWebSocketServer
+  ws.rsocks = newSeq[TSocket]()
+  ws.headers = newStringTable(modeCaseInsensitive)
   ws.open(port)
 
   while not stop:
@@ -210,22 +214,22 @@ when isMainModule:
 
   #Test module
   echo "Running websocket test"
+  
+  var wsocks = newSeq[TSocket]()
 
   proc onConnected(ws: TWebSocketServer, client: TWebSocket) =
-    client.send("Hello world 1")
-    client.send("Hello world 2")
-    client.send("Hello world 3")
+    ws.send(client, "Hello world 1")
+    ws.send(client, "Hello world 2")
+    ws.send(client, "Hello world 3")
 
-    echo "client connected"
-
-    var wsocks = @[client.socket]
+    wsocks.add(client.socket)
     if select(wsocks, -1) == 1:
       echo ws.read(client)
       echo ws.read(client)
       echo ws.read(client)
 
-    #client.socket.close()
-  
+    client.socket.close()
+
   run(onConnected)
 
   echo "Socket closed"
