@@ -21,7 +21,7 @@ type
   TWebSocket* = object of TObject
     socket*: TSocket
 
-  TWebSocketServer* = object of TWebSocket
+  TWebSocketServer* = object# of TWebSocket
     headers: PStringTable
     rsocks: seq[TSocket]
     server: TSocket
@@ -187,12 +187,14 @@ proc next*(ws: var TWebSocketServer,
 
   if select(ws.rsocks, timeout) == 1 and ws.rsocks.len == 0:
     block: #TODO - if rsock has server (select not impl correctly)
-      new(ws.socket)
-      accept(ws.server, ws.socket)
+      var ip: string
+      var client: TWebSocket
+      new(client.socket)
+      acceptAddr(ws.server, client.socket, ip)
       
-      #TODO - websocket handshake
-      if parseUpgrade(ws.socket, ws.headers):
-        onConnected(ws, TWebSocket(socket: ws.socket))
+      #Accept websocket upgrade
+      if parseUpgrade(client.socket, ws.headers):
+        onConnected(ws, client)
 
       return false
 
@@ -223,7 +225,7 @@ when isMainModule:
     ws.send(client, "Hello world 3")
 
     wsocks.add(client.socket)
-    if select(wsocks, -1) == 1:
+    if select(wsocks, -1) == 1: 
       echo ws.read(client)
       echo ws.read(client)
       echo ws.read(client)
