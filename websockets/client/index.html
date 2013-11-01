@@ -1,32 +1,35 @@
 <!-- http://localhost/websock/ -->
 <script>
-var ws;
+var ws, stop;
 
 function bindEvents() {
 
     ws.onopen = function() {
-        console.log('onopen ' + new Date(), arguments);
-
-        setTimeout(function() {
-            ws.close();
-            ws = null;
-            connect();
-        }, 1000);
+        //console.log('onopen ' + new Date(), arguments);
     };
 
     ws.onmessage = function(msg) {
-        console.log('onmessage ' + new Date(), arguments);
+        //console.log('onmessage ' + new Date(), arguments);
 
         ws.send("Client: Message received: " + msg.data);
     };
 
     ws.onclose = function() {
-        console.log('onclose ' + new Date(), arguments);
+        //console.log('onclose ' + new Date(), arguments);
+
+        setTimeout(function() {
+            ws.close();
+            ws = null;
+            connect();
+        }, 2500);
     };
     
 }
 
 function connect() {
+    if (stop)
+        return;
+
     ws = new WebSocket("ws://localhost:8080");
     bindEvents();
 }

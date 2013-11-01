@@ -21,7 +21,7 @@ type
   TWebSocket* = object of TObject
     socket*: TSocket
 
-  TWebSocketServer* = object# of TWebSocket
+  TWebSocketServer* = object
     headers: PStringTable
     rsocks: seq[TSocket]
     server: TSocket
