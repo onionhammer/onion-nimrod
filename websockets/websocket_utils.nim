@@ -77,3 +77,39 @@ proc checkUpgrade*(client: TSocket, headers: var PStringTable): bool =
   except:
     echo "Exception occurred.. was blocked :|"
     return false
+
+
+##These two procs should not be needed once sockets.nim is fixed
+proc pruneSocketSet*(s: var seq[TSocket], fd: seq[TSocket]) =
+  var i = 0
+  var L = s.len
+  while i < L:
+    if s[i] in fd:
+      s[i] = s[L-1]
+      dec(L)
+    else:
+      inc(i)
+  setLen(s, L)
+  
+
+proc select_c*(rsocks: var seq[TSocket], timeout = -1): int =
+  #TODO - Remove this when lib/pure select is fixed
+  proc cpySeq(input: seq[TSocket]) : seq[TSocket] =
+    result = newSeq[TSocket](input.len)
+    for i in 0..input.len-1:
+      result[i] = input[i]
+
+  var rd = cpySeq(rsocks)
+
+  result = sockets.select(rd, timeout)
+  pruneSocketSet(rsocks, rd)
+
+
+proc remove*[T](items: var seq[T], item: T) =
+  var len = items.len - 1
+  for i in 0 .. len:
+    if items[i] == item:
+      if i < len:
+        items[i] = items[i+1]
+      items.setLen(len)
+      break

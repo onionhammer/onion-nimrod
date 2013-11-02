@@ -1,5 +1,6 @@
 nimcache/
 *.exe
+websockets/websockets
 
 #################
 ## Eclipse

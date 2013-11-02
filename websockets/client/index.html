@@ -1,4 +1,3 @@
-<!-- http://localhost/websock/ -->
 <script>
 var ws, stop;
 
@@ -12,16 +11,18 @@ function bindEvents() {
         //console.log('onmessage ' + new Date(), arguments);
 
         ws.send("Client: Message received: " + msg.data);
-    };
-
-    ws.onclose = function() {
-        //console.log('onclose ' + new Date(), arguments);
 
         setTimeout(function() {
             ws.close();
             ws = null;
-            connect();
-        }, 1000);
+            setTimeout(function() {
+                connect();
+            }, 100);
+        }, 100);
+    };
+
+    ws.onclose = function() {
+        //console.log('onclose ' + new Date(), arguments);
     };
     
 }

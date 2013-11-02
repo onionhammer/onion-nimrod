@@ -23,15 +23,21 @@ const wwwNL       = "\r\L"
 
 ##Types
 type
-  TWebSocketConnectedCallback* = proc(server: TWebSocketServer, client: TWebSocket)
+  TWebSocketStatusCallback*        = proc(ws: var TWebSocketServer, client: TWebSocket)
+  TWebSocketBeforeConnectCallback* = proc(ws: var TWebSocketServer, client: TWebSocket, headers: PStringTable): bool
+  TWebSocketMessageCallback*       = proc(ws: var TWebSocketServer, client: TWebSocket, message: string)
 
   TWebSocket* = object of TObject
     socket*: TSocket
 
   TWebSocketServer* = object
-    server*: TSocket
-    clients*: seq[TWebSocket]
-    buffer: cstring
+    server*:         TSocket
+    clients*:        seq[TWebSocket]
+    buffer:          cstring
+    onBeforeConnect: TWebSocketBeforeConnectCallback
+    onConnected:     TWebSocketStatusCallback
+    onMessage:       TWebSocketMessageCallback
+    onDisconnected:  TWebSocketStatusCallback
 
 
 ##Procedures
@@ -41,7 +47,6 @@ proc checkUpgrade(client: TSocket, headers: var PStringTable): bool =
     return false
 
   if headers["upgrade"] != "websocket":
-    client.send("HTTP/1.1 403 Forbidden" & wwwNL & wwwNL & "Not Supported")
     return false
 
   var protocol  = headers["Sec-WebSocket-Protocol"]
@@ -75,25 +80,36 @@ proc open*(ws: var TWebSocketServer, port = TPort(8080), address = "127.0.0.1") 
   listen(ws.server)
 
 
-proc read*(ws: TWebSocketServer, client: TWebSocket, timeout = -1): string =
+proc read(ws: TWebSocketServer, client: TWebSocket, timeout = -1): string =
+  var read: int
   var buffer = ws.buffer
-  var read   = client.socket.recv(buffer, 2, timeout)
-  var length = int(uint8(buffer[1]) and 127)
-  
+
+  template readRet(size: int, tm = 0): stmt {.immediate.} =
+    read = client.socket.recv(buffer, size, tm)
+    if read < 2:
+      return ""
+
   template readLength(size: int) =
     ## Read next `size` bytes to determine length
-    read   = client.socket.recv(buffer, size, 0)
+    readRet(size)
     length = 0 #Reset the length to 0
 
     let max = size * 8
     for i in 1 .. size:
       length += int(buffer[i - 1]) shl (max - (i * 8))
 
+  #Read first two bytes
+  readRet(2, timeout)
+
+  var length = int(uint8(buffer[1]) and 127)
+  
+  #Determine length of message to follow
   if   length == 126: readLength(2)
   elif length == 127: readLength(8)
 
   #Read the rest of the data being transmitted
-  read   = client.socket.recv(buffer, length + 4, 0)
+  readRet(length + 4)
+
   result = newString(length)
 
   #Decode the buffer & copy into result
@@ -137,56 +153,89 @@ proc send*(ws: TWebSocketServer, client: TWebSocket, message: string) =
       buffer[9] = char(len and 255)
 
 
-proc close*(ws: TWebSocketServer) =
+proc close*(ws: var TWebSocketServer) =
   ## closes the connection
-  #TODO - close all client connections
+  #close all client connections
+  for client in ws.clients:
+    client.socket.close()
+
   ws.server.close()
+  ws.clients.setLen(0)
 
 
-proc close*(client: TWebSocket) =
+proc close*(ws: var TWebSocketServer, client: TWebSocket) =
   ## closes the connection (TODO - proper websocket shutdown)
+  client.socket.close()
+  ws.clients.remove(client)
+
+
+proc sendError*(client: TWebSocket, error = "Not Supported") =
+  # transmits forbidden message to client and closes socket
+  client.socket.send("HTTP/1.1 400 Bad Request" & wwwNL & wwwNL & error)
   client.socket.close()
 
 
-proc next*(ws: var TWebSocketServer, 
-           onConnected: TWebSocketConnectedCallback, 
-           timeout = -1): bool =
-  ## proceed to the first/next request. Waits ``timeout`` miliseconds for a
-  ## request, if ``timeout`` is `-1` then this function will never time out.
+proc handleServer(ws: var TWebSocketServer) =
+  # Accept incoming connection
+  var headers = newStringTable(modeCaseInsensitive)
+  var client: TWebSocket
+  new(client.socket)
+  accept(ws.server, client.socket)
 
-  var rsocks = @[ws.server]
+  var accepted = checkUpgrade(client.socket, headers)
 
-  for c in ws.clients:
-    rsocks.add(c.socket)
+  if accepted:
+    # check with onBeforeConnect
+    if ws.onBeforeConnect != nil:
+      accepted = ws.onBeforeConnect(ws, client, headers)
 
-  if select(rsocks, timeout) == 1:
-    #TODO - Iteraate through contents of rsocks
-    block: #TODO - if rsock has server (select not impl correctly)
-      var headers = newStringTable(modeCaseInsensitive)
-      var client: TWebSocket
-      new(client.socket)
-      accept(ws.server, client.socket)
-      
-      #Check if incoming client wants websocket
-      if checkUpgrade(client.socket, headers):
-        #TODO - client connection has been upgraded
-        ws.clients.add(client)
-        onConnected(ws, client)
-      else:
-        #Client is not trying to connect via websocket
-        client.close()
+    # if connection allowed, add to client list and call onConnected
+    if accepted:
+      ws.clients.add(client)
+      ws.onConnected(ws, client)
 
-      return true
-    ##if rsocks has a client
+  if not accepted:
+    # break connection
+    client.sendError()
 
 
-proc run*(onConnected: TWebSocketConnectedCallback, port = TPort(8080)) =
-  ## runs a synchronous websocket listener
-  var ws: TWebSocketServer
+proc handleClient(ws: var TWebSocketServer, client: TWebSocket) =
+  ## detect incoming messages
+  var message = ws.read(client)
 
+  ## detect disconnect, pass to onDisconnected callback
+  ## and remove from client list
+  if message == "":
+    ws.close(client)
+    ws.onDisconnected(ws, client)
+
+  else:
+    ws.onMessage(ws, client, message)
+
+
+proc run*(ws: var TWebSocketServer, port = TPort(8080)) =
+  ## Open a synchronous socket listener
   ws.open(port)
 
-  while ws.next(onConnected): nil
+  while true:
+    # gather up all open sockets
+    var rsocks = newSeq[TSocket](ws.clients.len + 1)
+
+    rsocks[0] = ws.server
+    for i in 0 .. ws.clients.len-1:
+      rsocks[i+1] = ws.clients[i].socket
+
+    # block thread until a socket has changed
+    if select_c(rsocks, -1) != 0:
+
+      # if read socket is a client, pass to handleClient
+      for client in ws.clients:
+        if client.socket in rsocks:
+          ws.handleClient(client)
+
+      # if read socket is listener, pass to handleServer
+      if ws.server in rsocks:
+        ws.handleServer()
 
 
 ##Tests
@@ -194,18 +243,27 @@ when isMainModule:
 
   #Test module
   echo "Running websocket test"
-  
-  var wsocks = newSeq[TSocket]()
 
-  proc onConnected(ws: TWebSocketServer, client: TWebSocket) =
-    ws.send(client, "Hello world!")
+  proc onBeforeConnect(ws: var TWebSocketServer, client: TWebSocket, headers: PStringTable): bool = true
 
-    wsocks.add(client.socket)
-    if select(wsocks, -1) == 1:
-      echo ws.read(client)
+  proc onConnected(ws: var TWebSocketServer, client: TWebSocket) =
+    echo "connected"
+    ws.send(client, "hello world!")
 
-    client.close()
+  proc onMessage(ws: var TWebSocketServer, client: TWebSocket, message: string) =
+    echo "message: ", message
 
-  run(onConnected)
+  proc onDisconnected(ws: var TWebSocketServer, client: TWebSocket) =
+    echo "disconnected: ", ws.clients.len, " clients remaining"
+
+
+  var ws = TWebSocketServer(
+    onBeforeConnect: onBeforeConnect,
+    onConnected    : onConnected,
+    onMessage      : onMessage,
+    onDisconnected : onDisconnected
+  )
+
+  ws.run()
 
   echo "Socket closed"
