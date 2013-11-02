@@ -4,10 +4,12 @@
 # https://developer.mozilla.org/en-US/docs/WebSockets/Writing_WebSocket_server
 # https://github.com/warmcat/libwebsockets/tree/master/lib
 
+
 ##TODO:
 # Handle pings/pongs
 # Handle multiple client sockets
 # Implement asyncio support
+
 
 ##Imports
 import sockets, strutils, strtabs, parseutils, asyncio, unsigned, sha1
@@ -27,7 +29,8 @@ type
     socket*: TSocket
 
   TWebSocketServer* = object
-    server: TSocket
+    server*: TSocket
+    clients*: seq[TWebSocket]
     buffer: cstring
 
 
@@ -38,7 +41,7 @@ proc checkUpgrade(client: TSocket, headers: var PStringTable): bool =
     return false
 
   if headers["upgrade"] != "websocket":
-    client.send("Not Supported")
+    client.send("HTTP/1.1 403 Forbidden" & wwwNL & wwwNL & "Not Supported")
     return false
 
   var protocol  = headers["Sec-WebSocket-Protocol"]
@@ -61,8 +64,9 @@ proc checkUpgrade(client: TSocket, headers: var PStringTable): bool =
 
 proc open*(ws: var TWebSocketServer, port = TPort(8080), address = "127.0.0.1") =
   ## opens a connection
-  ws.buffer = cstring(newString(4000))
-  ws.server = socket()
+  ws.server  = socket()
+  ws.clients = newSeq[TWebSocket]()
+  ws.buffer  = cstring(newString(4000))
 
   if ws.server == InvalidSocket: 
     websocketError("could not open websocket")
@@ -152,7 +156,11 @@ proc next*(ws: var TWebSocketServer,
 
   var rsocks = @[ws.server]
 
+  for c in ws.clients:
+    rsocks.add(c.socket)
+
   if select(rsocks, timeout) == 1:
+    #TODO - Iteraate through contents of rsocks
     block: #TODO - if rsock has server (select not impl correctly)
       var headers = newStringTable(modeCaseInsensitive)
       var client: TWebSocket
@@ -162,12 +170,14 @@ proc next*(ws: var TWebSocketServer,
       #Check if incoming client wants websocket
       if checkUpgrade(client.socket, headers):
         #TODO - client connection has been upgraded
+        ws.clients.add(client)
         onConnected(ws, client)
       else:
         #Client is not trying to connect via websocket
         client.close()
 
       return true
+    ##if rsocks has a client
 
 
 proc run*(onConnected: TWebSocketConnectedCallback, port = TPort(8080)) =
