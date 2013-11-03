@@ -1,5 +1,5 @@
 ##Imports
-import sockets, strtabs, parseutils, sha1
+import sockets, asyncio, strtabs, parseutils, sha1
 
 
 ##Types
@@ -14,19 +14,18 @@ proc websocketError*(msg: string) {.noreturn.} =
   e.msg = msg
   raise e
 
-proc parseHTTPHeader*(client: TSocket, headers: var PStringTable): bool =
-  ## parse HTTP header
+
+template parseHTTPHeader(header: expr, readline: stmt): stmt {.immediate.} =
   var header = ""
-  client.readLine(header)
-  
+  readline
+
   if header == "":
-    client.close()
     return false
 
   let newLine = {'\c', '\L'}
 
   while true:
-    client.readLine(header)
+    readline
 
     if header == "\c\L":
       return true
@@ -41,8 +40,19 @@ proc parseHTTPHeader*(client: TSocket, headers: var PStringTable): bool =
       headers[key] = value
 
     else:
-      client.close()
       return false
+
+
+proc parseHTTPHeader*(client: PAsyncSocket, headers: var PStringTable): bool =
+  ## parse HTTP header
+  parseHTTPHeader(header):
+    if not client.readLine(header):
+      header = ""
+
+proc parseHTTPHeader*(client: TSocket, headers: var PStringTable): bool =
+  ## parse HTTP header
+  parseHTTPHeader(header):
+    client.readLine(header)
 
 
 ##These two procs should not be needed once sockets.nim is fixed
@@ -56,7 +66,7 @@ proc pruneSocketSet*(s: var seq[TSocket], fd: seq[TSocket]) =
     else:
       inc(i)
   setLen(s, L)
-  
+
 
 proc select_c*(rsocks: var seq[TSocket], timeout = -1): int =
   proc cpySeq(input: seq[TSocket]) : seq[TSocket] =
@@ -69,11 +79,10 @@ proc select_c*(rsocks: var seq[TSocket], timeout = -1): int =
   result = sockets.select(rd, timeout)
   pruneSocketSet(rsocks, rd)
 
-
-proc remove*[T](items: var seq[T], item: T) =
+proc remove*[T](items: var seq[T], item: T, cmp: proc(a,b:T): bool) =
   var len = items.len - 1
   for i in 0 .. len:
-    if items[i] == item:
+    if cmp(items[i], item):
       if i < len:
         items[i] = items[i+1]
       items.setLen(len)
