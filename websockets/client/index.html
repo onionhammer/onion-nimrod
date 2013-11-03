@@ -15,10 +15,8 @@ function bindEvents() {
         setTimeout(function() {
             ws.close();
             ws = null;
-            setTimeout(function() {
-                connect();
-            }, 100);
-        }, 100);
+            connect();
+        }, 2500);
     };
 
     ws.onclose = function() {
