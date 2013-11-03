@@ -32,10 +32,13 @@ template parseHTTPHeader(header: expr, readline: stmt): stmt {.immediate.} =
 
     elif header != "":
       var key, value: string
-
       var i = header.parseUntil(key, ':') + 1
-      i    += header.skipWhiteSpace(i)
-      i    += header.parseUntil(value, newLine, i)
+
+      if i >= header.len:
+        return false
+
+      i += header.skipWhiteSpace(i)
+      i += header.parseUntil(value, newLine, i)
 
       headers[key] = value
 

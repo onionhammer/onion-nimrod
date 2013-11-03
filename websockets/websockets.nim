@@ -30,13 +30,14 @@ type
     code*: int
     disconnected: bool
 
-  TWebSocket* = object
+  TWebSocket* = ref TWebSocketImpl
+  TWebSocketImpl = object
     case isAsync: bool
     of true:  asyncSocket: PAsyncSocket
     of false: socket: TSocket
 
   TWebSocketServer* = ref TWebSocketServerImpl
-  TWebSocketServerImpl = object of TObject
+  TWebSocketServerImpl = object
     clients*:        seq[TWebSocket]
     buffer:          cstring
     onBeforeConnect: TWebSocketBeforeConnectCallback
@@ -199,10 +200,16 @@ proc send*(ws: TWebSocketServer, client: TWebSocket, message: string) =
 proc close*(ws: var TWebSocketServer) =
   ## closes the connection
   #close all client connections
-  for client in ws.clients:
-    client.socket.close()
+  if ws.isAsync:
+    for client in ws.clients:
+      client.asyncSocket.close()
+    ws.asyncServer.close()
 
-  ws.server.close()
+  else:
+    for client in ws.clients:
+      client.socket.close()
+    ws.server.close()
+
   ws.clients.setLen(0)
   ws.server  = nil
   ws.clients = nil
@@ -263,25 +270,28 @@ proc handleConnect(ws: var TWebSocketServer, client: TWebSocket, headers: PStrin
   return true
 
 
-proc handleAccept(ws: var TWebSocketServer, server: PAsyncSocket) =
-  ## Handle async accept
-  
-  # Accept incoming connection
-  var owner   = ws
+proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: PAsyncSocket) =
   var headers = newStringTable(modeCaseInsensitive)
-  var client  = TWebSocket(isAsync: true)
-
-  new(client.asyncSocket)
-  accept(server, client.asyncSocket)
-
-  client.asyncSocket.handleRead = 
-    proc(socket: PAsyncSocket) =
-      # parse HTTP headers & handle connection
-      if not client.asyncSocket.parseHTTPHeader(headers) or
-         not owner.handleConnect(client, headers):
-        client.sendError()
+  var client  = TWebSocket(isAsync: true, asyncSocket: socket)
   
-  ws.dispatcher.register(client.asyncSocket)
+  # parse HTTP headers & handle connection
+  if not client.asyncSocket.parseHTTPHeader(headers) or
+     not ws.handleConnect(client, headers):
+    client.sendError()
+
+
+proc handleAccept(ws: var TWebSocketServer, server: PAsyncSocket) =
+  # Accept incoming connection
+  var owner = ws
+  var socket: PAsyncSocket
+
+  new(socket)
+  accept(server, socket)
+
+  socket.handleRead = 
+    proc(socket: PAsyncSocket) = owner.handleAsyncUpgrade(socket)
+
+  ws.dispatcher.register(socket)
 
 
 proc open*(address = "127.0.0.1", port = TPort(8080), isAsync = true): TWebSocketServer =
@@ -348,6 +358,7 @@ proc run*(ws: var TWebSocketServer, port = TPort(8080)) =
 
 proc register*(dispatcher: PDispatcher, ws: var TWebSocketServer) =
   ## Register the websocket with an asyncio dispatcher object
+  if not ws.isAsync: websocketError("register only works with async websocket servers")
   dispatcher.register(ws.asyncServer)
   ws.dispatcher = dispatcher
 
