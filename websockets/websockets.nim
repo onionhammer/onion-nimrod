@@ -9,7 +9,7 @@
 
 
 ##Imports
-import sockets, asyncio, strutils, strtabs, parseutils, unsigned, sha1
+import sockets, asyncio, sequtils, strutils, strtabs, parseutils, unsigned, sha1
 import websocket_utils
 
 
@@ -20,25 +20,21 @@ const wwwNL       = "\r\L"
 
 ##Types
 type
-  TWebSocketCallback*              = proc(ws: var TWebSocketServer, client: TWebSocket, message: PWebSocketMessage)
-  TWebSocketBeforeConnectCallback* = proc(ws: var TWebSocketServer, client: TWebSocket, headers: PStringTable): bool
+  TWebSocketCallback*              = proc(ws: TWebSocketServer, client: TWebSocket, message: TWebSocketMessage)
+  TWebSocketBeforeConnectCallback* = proc(ws: TWebSocketServer, client: TWebSocket, headers: PStringTable): bool
 
-  PWebSocketMessage* = ref TWebSocketMessage
-  TWebSocketMessage* = object
+  TWebSocketMessage* = ref object
     fin*, rsv*, opCode*: int
     data*: string
-    code*: int
     disconnected: bool
 
-  TWebSocket* = ref TWebSocketImpl
-  TWebSocketImpl = object
+  TWebSocket* = ref object
     case isAsync: bool
     of true:  asyncSocket: PAsyncSocket
     of false: socket: TSocket
 
-  TWebSocketServer* = ref TWebSocketServerImpl
-  TWebSocketServerImpl = object
-    clients*:        seq[TWebSocket]
+  TWebSocketServer* = ref object
+    clients:         seq[TWebSocket]
     buffer:          cstring
     onBeforeConnect: TWebSocketBeforeConnectCallback
     onConnected:     TWebSocketCallback
@@ -59,6 +55,8 @@ proc sendError*(client: TWebSocket, error = "Not Supported") =
   if client.isAsync:
     client.asyncSocket.send(message)
     client.asyncSocket.close()
+    client.asyncSocket.handleRead = nil
+
   else:
     client.socket.send(message)
     client.socket.close()
@@ -91,12 +89,13 @@ proc checkUpgrade(client: TWebSocket, headers: PStringTable): bool =
   return true
 
 
-proc read(ws: TWebSocketServer, client: TWebSocket, timeout = -1): PWebSocketMessage =
+proc read(ws: TWebSocketServer, client: TWebSocket, timeout = -1): TWebSocketMessage =
   var read, length: int
   var buffer = ws.buffer
+  zeroMem(buffer, buffer.len)
 
   #If we get to the end of the proc, client is still connected
-  result = PWebSocketMessage(data: "")
+  result = TWebSocketMessage(data: "")
 
   template read_next(size: int, tm): stmt =
     #Retrieve next chunk of message
@@ -126,37 +125,37 @@ proc read(ws: TWebSocketServer, client: TWebSocket, timeout = -1): PWebSocketMes
   var total     = int(buffer[0])
   result.fin    = (total and 128) shr 7
   result.rsv    = (total and 127) shr 4
-  result.opCode = total and 0xf
+  result.opCode = (total and 0xf)
 
-  #Check opCode
-  if result.rsv != 0 or result.opCode == 8:
+  #Validate frame header
+  if result.fin == 0 or result.rsv != 0 or result.opCode == 8:
+    # Frame is not FINnished, broken, or client disconnected
+    # TODO - handle fin=0 (cant while socket lib is so restrictive)
     result.disconnected = true
+    return result
+
+  elif result.opCode in {3 .. 7} or result.opCode >= 0xB:
+    # Control or non-control frame, disregard
+    echo "control frame..."
+    return result
+
+  elif result.opCode in {0x9 .. 0xA}:
+    #Ping or Pong, disregard
+    return result
 
   #Determine length of message to follow
   length = int(uint8(buffer[1]) and 127)
   if   length == 126: readLength(2)
   elif length == 127: readLength(8)
 
-  #If there is a disconnect code to be read, offset message by 2 bytes
-  var codeOffset = 0
-  if result.disconnected:
-    codeOffset = -2
-
   #Read the rest of the data being transmitted
   read_next(length + 4, 0)
-  result.data = newString(length + codeOffset)
+  result.data = newString(length)
 
   #Decode the buffer & copy into result
   var j = 0
   for i in 0 .. length-1:
-    if result.disconnected and i < 2:
-      #Parse out close code
-      var code = int(buffer[i + 4]) xor int(buffer[j mod 4])
-      result.code = (result.code shl 8) + code
-
-    else:
-      result.data[j + codeOffset] = char(byte(buffer[i + 4]) xor byte(buffer[j mod 4]))
-
+    result.data[j] = char(byte(buffer[i + 4]) xor byte(buffer[j mod 4]))
     inc(j)
 
 
@@ -203,6 +202,7 @@ proc close*(ws: var TWebSocketServer) =
   if ws.isAsync:
     for client in ws.clients:
       client.asyncSocket.close()
+      client.asyncSocket.handleRead = nil
     ws.asyncServer.close()
 
   else:
@@ -210,7 +210,6 @@ proc close*(ws: var TWebSocketServer) =
       client.socket.close()
     ws.server.close()
 
-  ws.clients.setLen(0)
   ws.server  = nil
   ws.clients = nil
   ws.buffer  = nil
@@ -218,17 +217,17 @@ proc close*(ws: var TWebSocketServer) =
 
 proc close*(ws: var TWebSocketServer, client: TWebSocket) =
   ## closes the connection
-  if client.isAsync:
+  # remove the item from the list of clients
+  ws.clients = ws.clients.filter(
+    proc(c: TWebSocket): bool = c != client
+  )
+
+  if ws.isAsync:
     client.asyncSocket.close()
+    client.asyncSocket.handleRead = nil
+
   else:
     client.socket.close()
-
-  # remove the item from the list of clients
-  ws.clients.remove(client, proc (a,b: TWebSocket): bool =
-    if a.isAsync and b.isAsync and a.asyncSocket == b.asyncSocket: true
-    elif not a.isAsync and not b.isAsync and a.socket == b.socket: true
-    else: false
-  )
 
 
 proc handleClient(ws: var TWebSocketServer, client: TWebSocket) =
@@ -238,7 +237,6 @@ proc handleClient(ws: var TWebSocketServer, client: TWebSocket) =
 
   if message.disconnected:
     ws.close(client)
-
     if ws.onDisconnected != nil:
       ws.onDisconnected(ws, client, message)
 
@@ -259,37 +257,34 @@ proc handleConnect(ws: var TWebSocketServer, client: TWebSocket, headers: PStrin
   # if connection allowed, add to client list and call onConnected
   ws.clients.add(client)
 
-  # reset the handleRead event to handle messages
-  if client.isAsync:
-    var owner = ws
-    client.asyncSocket.handleRead =
-      proc(s: PAsyncSocket) = owner.handleClient(client)
-
-  if (ws.onConnected == nil): websocketError("OnConnected event not bound")
+  if (ws.onConnected == nil): websocketError("onConnected event not bound")
   ws.onConnected(ws, client, nil)
   return true
 
 
-proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: PAsyncSocket) =
+proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: PAsyncSocket): TWebSocket =
   var headers = newStringTable(modeCaseInsensitive)
-  var client  = TWebSocket(isAsync: true, asyncSocket: socket)
+  result = TWebSocket(isAsync: true, asyncSocket: socket)
   
   # parse HTTP headers & handle connection
-  if not client.asyncSocket.parseHTTPHeader(headers) or
-     not ws.handleConnect(client, headers):
-    client.sendError()
+  if not result.asyncSocket.parseHTTPHeader(headers) or
+     not ws.handleConnect(result, headers):
+    result.sendError()
+    result = nil
 
 
 proc handleAccept(ws: var TWebSocketServer, server: PAsyncSocket) =
   # Accept incoming connection
   var owner = ws
+  var client: TWebSocket
   var socket: PAsyncSocket
-
   new(socket)
+  
   accept(server, socket)
 
-  socket.handleRead = 
-    proc(socket: PAsyncSocket) = owner.handleAsyncUpgrade(socket)
+  socket.handleRead = proc(socket: PAsyncSocket) =
+    if client != nil: owner.handleClient(client)
+    else: client = owner.handleAsyncUpgrade(socket)
 
   ws.dispatcher.register(socket)
 
@@ -312,7 +307,7 @@ proc open*(address = "127.0.0.1", port = TPort(8080), isAsync = true): TWebSocke
       proc(s: PAsyncSocket) = ws.handleAccept(s)
 
   else:
-    ws.server  = socket()
+    ws.server = socket()
     if ws.server == InvalidSocket: 
       websocketError("could not open websocket")
 
@@ -323,7 +318,8 @@ proc open*(address = "127.0.0.1", port = TPort(8080), isAsync = true): TWebSocke
 
 
 proc run*(ws: var TWebSocketServer, port = TPort(8080)) =
-  ## Open a synchronous socket listener
+  ## Begins listening for incoming websocket requests
+  if ws.isAsync: websocketError("run() only works with non-async websocket servers")
 
   while true:
     # gather up all open sockets
@@ -358,7 +354,8 @@ proc run*(ws: var TWebSocketServer, port = TPort(8080)) =
 
 proc register*(dispatcher: PDispatcher, ws: var TWebSocketServer) =
   ## Register the websocket with an asyncio dispatcher object
-  if not ws.isAsync: websocketError("register only works with async websocket servers")
+  if not ws.isAsync: websocketError("register() only works with async websocket servers")
+
   dispatcher.register(ws.asyncServer)
   ws.dispatcher = dispatcher
 
@@ -368,37 +365,30 @@ when isMainModule:
 
   #proc onBeforeConnect(ws: var TWebSocketServer, client: TWebSocket, headers: PStringTable): bool = true
 
-  proc onConnected(ws: var TWebSocketServer, client: TWebSocket, message: PWebSocketMessage) =
+  proc onConnected(ws: TWebSocketServer, client: TWebSocket, message: TWebSocketMessage) =
     ws.send(client, "hello world!")
 
-  proc onMessage(ws: var TWebSocketServer, client: TWebSocket, message: PWebSocketMessage) =
+  proc onMessage(ws: TWebSocketServer, client: TWebSocket, message: TWebSocketMessage) =
     echo "message: ", message.data
 
-  proc onDisconnected(ws: var TWebSocketServer, client: TWebSocket, message: PWebSocketMessage) =
-    echo "disconnected with code: ", message.code
-    echo "disconnect message: ", message.data
+  proc onDisconnected(ws: TWebSocketServer, client: TWebSocket, message: TWebSocketMessage) =
+    echo "client left, remaining: ", ws.clients.len
 
+  echo "Running websocket test"
 
-  when defined(disabled):
-    #Test run() procedure
-    echo "Running websocket test"
+  #Choose which type of websocket to test
+  const testAsync = true
 
-    var ws = open(isAsync = false)
-    ws.onConnected    = onConnected
-    ws.onMessage      = onMessage
-    ws.onDisconnected = onDisconnected
+  var ws            = open(isAsync = testAsync)
+  ws.onConnected    = onConnected
+  ws.onMessage      = onMessage
+  ws.onDisconnected = onDisconnected
+
+  when not testAsync:
     ws.run()
 
   else:
-    #Test register() procedure
-    echo "Running asyncio websocket test"
-
     let dispatch = newDispatcher()
-    var ws = open(isAsync = true)
-    ws.onConnected    = onConnected
-    ws.onMessage      = onMessage
-    ws.onDisconnected = onDisconnected
-
     dispatch.register(ws)
 
     while dispatch.poll(): nil

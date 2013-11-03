@@ -52,6 +52,7 @@ proc parseHTTPHeader*(client: PAsyncSocket, headers: var PStringTable): bool =
     if not client.readLine(header):
       header = ""
 
+
 proc parseHTTPHeader*(client: TSocket, headers: var PStringTable): bool =
   ## parse HTTP header
   parseHTTPHeader(header):
@@ -81,12 +82,3 @@ proc select_c*(rsocks: var seq[TSocket], timeout = -1): int =
 
   result = sockets.select(rd, timeout)
   pruneSocketSet(rsocks, rd)
-
-proc remove*[T](items: var seq[T], item: T, cmp: proc(a,b:T): bool) =
-  var len = items.len - 1
-  for i in 0 .. len:
-    if cmp(items[i], item):
-      if i < len:
-        items[i] = items[i+1]
-      items.setLen(len)
-      break
