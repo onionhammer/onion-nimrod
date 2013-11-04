@@ -3,7 +3,7 @@
 
 
 ##TODO:
-# Implement asyncio support
+# Resolve memory issues
 # Cleanup
 # Finalize external interface
 
@@ -55,7 +55,6 @@ proc sendError*(client: TWebSocket, error = "Not Supported") =
   if client.isAsync:
     client.asyncSocket.send(message)
     client.asyncSocket.close()
-    client.asyncSocket.handleRead = nil
 
   else:
     client.socket.send(message)
@@ -202,7 +201,6 @@ proc close*(ws: var TWebSocketServer) =
   if ws.isAsync:
     for client in ws.clients:
       client.asyncSocket.close()
-      client.asyncSocket.handleRead = nil
     ws.asyncServer.close()
 
   else:
@@ -224,7 +222,6 @@ proc close*(ws: var TWebSocketServer, client: TWebSocket) =
 
   if ws.isAsync:
     client.asyncSocket.close()
-    client.asyncSocket.handleRead = nil
 
   else:
     client.socket.close()
@@ -237,11 +234,12 @@ proc handleClient(ws: var TWebSocketServer, client: TWebSocket) =
 
   if message.disconnected:
     ws.close(client)
+
     if ws.onDisconnected != nil:
       ws.onDisconnected(ws, client, message)
 
   elif message.opCode == 1: #For now we just handle text frames
-    if (ws.onMessage == nil): websocketError("onMessage event not bound")
+    if ws.onMessage == nil: websocketError("onMessage event not bound")
     ws.onMessage(ws, client, message)
 
 
@@ -255,16 +253,15 @@ proc handleConnect(ws: var TWebSocketServer, client: TWebSocket, headers: PStrin
     return false
 
   # if connection allowed, add to client list and call onConnected
+  if ws.onConnected == nil: websocketError("onConnected event not bound")
   ws.clients.add(client)
-
-  if (ws.onConnected == nil): websocketError("onConnected event not bound")
   ws.onConnected(ws, client, nil)
   return true
 
 
 proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: PAsyncSocket): TWebSocket =
   var headers = newStringTable(modeCaseInsensitive)
-  result = TWebSocket(isAsync: true, asyncSocket: socket)
+  result      = TWebSocket(isAsync: true, asyncSocket: socket)
   
   # parse HTTP headers & handle connection
   if not result.asyncSocket.parseHTTPHeader(headers) or
@@ -274,14 +271,13 @@ proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: PAsyncSocket): TWebSoc
 
 
 proc handleAccept(ws: var TWebSocketServer, server: PAsyncSocket) =
-  # Accept incoming connection
-  var owner = ws
+  # accept incoming connection
   var client: TWebSocket
   var socket: PAsyncSocket
   new(socket)
-  
   accept(server, socket)
 
+  var owner = ws
   socket.handleRead = proc(socket: PAsyncSocket) =
     if client != nil: owner.handleClient(client)
     else: client = owner.handleAsyncUpgrade(socket)
@@ -317,7 +313,7 @@ proc open*(address = "127.0.0.1", port = TPort(8080), isAsync = true): TWebSocke
   return ws
 
 
-proc run*(ws: var TWebSocketServer, port = TPort(8080)) =
+proc run*(ws: var TWebSocketServer) =
   ## Begins listening for incoming websocket requests
   if ws.isAsync: websocketError("run() only works with non-async websocket servers")
 
@@ -342,7 +338,7 @@ proc run*(ws: var TWebSocketServer, port = TPort(8080)) =
 
         # Accept incoming connection
         var headers = newStringTable(modeCaseInsensitive)
-        var client = TWebSocket(isAsync: false)
+        var client  = TWebSocket(isAsync: false)
         new(client.socket)
         accept(ws.server, client.socket)
 
@@ -354,7 +350,8 @@ proc run*(ws: var TWebSocketServer, port = TPort(8080)) =
 
 proc register*(dispatcher: PDispatcher, ws: var TWebSocketServer) =
   ## Register the websocket with an asyncio dispatcher object
-  if not ws.isAsync: websocketError("register() only works with async websocket servers")
+  if not ws.isAsync:
+    websocketError("register() only works with async websocket servers")
 
   dispatcher.register(ws.asyncServer)
   ws.dispatcher = dispatcher
