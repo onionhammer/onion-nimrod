@@ -12,6 +12,8 @@
 import sockets, asyncio, sequtils, strutils, strtabs, parseutils, unsigned, sha1
 import websocket_utils
 
+export strtabs
+
 
 ##Fields
 const magicString = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -34,12 +36,12 @@ type
     of false: socket: TSocket
 
   TWebSocketServer* = ref object
-    clients:         seq[TWebSocket]
-    buffer:          cstring
-    onBeforeConnect: TWebSocketBeforeConnectCallback
-    onConnected:     TWebSocketCallback
-    onMessage:       TWebSocketCallback
-    onDisconnected:  TWebSocketCallback
+    clients:          seq[TWebSocket]
+    buffer:           cstring
+    onBeforeConnect*: TWebSocketBeforeConnectCallback
+    onConnected*:     TWebSocketCallback
+    onMessage*:       TWebSocketCallback
+    onDisconnected*:  TWebSocketCallback
     case isAsync: bool
     of true:
       asyncServer: PAsyncSocket
@@ -222,6 +224,7 @@ proc close*(ws: var TWebSocketServer, client: TWebSocket) =
 
   if ws.isAsync:
     client.asyncSocket.close()
+    GC_unRef(client.asyncSocket.getSocket())
 
   else:
     client.socket.close()

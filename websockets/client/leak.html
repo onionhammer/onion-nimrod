@@ -1,0 +1,14 @@
+<script>
+var ws;
+
+function connect() {
+    ws = new WebSocket("ws://localhost:8080");
+
+    setTimeout(function() {
+        ws.close();
+        connect();
+    }, 20);
+}
+
+connect();
+</script>
