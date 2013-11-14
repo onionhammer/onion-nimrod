@@ -1,0 +1,37 @@
+<script>
+var ws, stop;
+
+function bindEvents() {
+
+    ws.onopen = function() {
+        //console.log('onopen ' + new Date(), arguments);
+    };
+
+    ws.onmessage = function(msg) {
+        console.log('onmessage ' + new Date(), arguments);
+
+        ws.send("Client: Message received: " + msg.data);
+
+        // setTimeout(function() {
+        //     ws.close();
+        //     ws = null;
+        //     connect();
+        // }, 100);
+    };
+
+    ws.onclose = function() {
+        //console.log('onclose ' + new Date(), arguments);
+    };
+    
+}
+
+function connect() {
+    if (stop)
+        return;
+
+    ws = new WebSocket("ws://localhost:8081");
+    bindEvents();
+}
+
+connect();
+</script>

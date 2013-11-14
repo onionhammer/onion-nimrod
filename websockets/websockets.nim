@@ -36,7 +36,7 @@ type
     of false: socket: TSocket
 
   TWebSocketServer* = ref object
-    clients:          seq[TWebSocket]
+    clients*:         seq[TWebSocket]
     buffer:           cstring
     onBeforeConnect*: TWebSocketBeforeConnectCallback
     onConnected*:     TWebSocketCallback
@@ -288,7 +288,7 @@ proc handleAccept(ws: var TWebSocketServer, server: PAsyncSocket) =
   ws.dispatcher.register(socket)
 
 
-proc open*(address = "127.0.0.1", port = TPort(8080), isAsync = true): TWebSocketServer =
+proc open*(address = "", port = TPort(8080), isAsync = true): TWebSocketServer =
   ## open a websocket server
   var ws: TWebSocketServer
   new(ws)
