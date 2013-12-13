@@ -59,26 +59,15 @@ proc parseHTTPHeader*(client: TSocket, headers: var PStringTable): bool =
     client.readLine(header)
 
 
-##These two procs should not be needed once sockets.nim is fixed
-proc pruneSocketSet*(s: var seq[TSocket], fd: seq[TSocket]) =
-  var i = 0
-  var L = s.len
-  while i < L:
-    if s[i] in fd:
-      s[i] = s[L-1]
-      dec(L)
-    else:
-      inc(i)
-  setLen(s, L)
-
-
+# This proc should not be needed once sockets.nim is fixed
 proc select_c*(rsocks: var seq[TSocket], timeout = -1): int =
-  proc cpySeq(input: seq[TSocket]) : seq[TSocket] =
-    result = newSeq[TSocket](input.len)
-    for i in 0..input.len-1:
-      result[i] = input[i]
-
-  var rd = cpySeq(rsocks)
-
+  var rd = rsocks
   result = sockets.select(rd, timeout)
-  pruneSocketSet(rsocks, rd)
+
+  var i = 0
+  var L = rsocks.len
+  while i < L:
+    if rsocks[i] in rd:
+      rsocks[i] = rsocks[L-1]; dec(L)
+    else: inc(i)
+  setLen(rsocks, L)

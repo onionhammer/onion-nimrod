@@ -9,7 +9,7 @@
 
 
 ##Imports
-import sockets, asyncio, sequtils, strutils, strtabs, parseutils, unsigned, sha1
+import sockets, asyncio, strutils, strtabs, parseutils, unsigned, sha1
 import websocket_utils
 
 export strtabs
@@ -46,7 +46,8 @@ type
     of true:
       asyncServer: PAsyncSocket
       dispatcher: PDispatcher
-    of false: server: TSocket
+    of false:
+      server: TSocket
 
 
 ##Procedures
@@ -106,7 +107,7 @@ proc read(ws: TWebSocketServer, client: TWebSocket, timeout = -1): TWebSocketMes
       read = client.socket.recv(buffer, size, tm)
 
     #If bytes read == 0 client disconnected
-    if read == 0: 
+    if read == 0:
       result.disconnected = true
       return result
 
@@ -137,7 +138,6 @@ proc read(ws: TWebSocketServer, client: TWebSocket, timeout = -1): TWebSocketMes
 
   elif result.opCode in {3 .. 7} or result.opCode >= 0xB:
     # Control or non-control frame, disregard
-    echo "control frame..."
     return result
 
   elif result.opCode in {0x9 .. 0xA}:
@@ -218,9 +218,12 @@ proc close*(ws: var TWebSocketServer) =
 proc close*(ws: var TWebSocketServer, client: TWebSocket) =
   ## closes the connection
   # remove the item from the list of clients
-  ws.clients = ws.clients.filter(
-    proc(c: TWebSocket): bool = c != client
-  )
+  var i = 0
+  while i < ws.clients.len:
+    var c = ws.clients[i]
+    if c == client:
+      ws.clients.del(i); break
+    inc(i)
 
   if ws.isAsync:
     client.asyncSocket.close()
@@ -265,7 +268,7 @@ proc handleConnect(ws: var TWebSocketServer, client: TWebSocket, headers: PStrin
 proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: PAsyncSocket): TWebSocket =
   var headers = newStringTable(modeCaseInsensitive)
   result      = TWebSocket(isAsync: true, asyncSocket: socket)
-  
+
   # parse HTTP headers & handle connection
   if not result.asyncSocket.parseHTTPHeader(headers) or
      not ws.handleConnect(result, headers):
@@ -307,7 +310,7 @@ proc open*(address = "", port = TPort(8080), isAsync = true): TWebSocketServer =
 
   else:
     ws.server = socket()
-    if ws.server == InvalidSocket: 
+    if ws.server == InvalidSocket:
       websocketError("could not open websocket")
 
     bindAddr(ws.server, port, address)
