@@ -45,8 +45,6 @@ proc check_expression(value: string, node: PNimrodNode, index, read: var int) {.
 proc transform(info_string: string, result: PNimrodNode) =
     var transform_string = ""
 
-    result.add parseExpr("result = \"\"")
-
     # Transform info and add to result statement list
     var index = 0
     while index < info_string.len:
@@ -78,8 +76,13 @@ macro tmpl*(body: expr): stmt =
     ## which returns type `string`
     result = newStmtList()
 
+    result.add parseExpr("if result == nil: result = \"\"")
+
+    var value = if body.kind in nnkStrLit..nnkTripleStrLit: body
+                else: body[1]
+
     transform(
-        reindent($toStrLit(body[1])),
+        reindent($toStrLit(value)),
         result
     )
 
@@ -87,20 +90,25 @@ macro tmpl*(body: expr): stmt =
 # Tests
 when isMainModule:
 
-    proc sample(nums: openarray[int] = []): string =
+    # No substitution
+    proc no_substitution: string = tmpl html"""
+        <div>Test!</div>
+    """
 
-        # No substitution
-        # tmpl html"""
-        #     <div>Test!</div>
-        # """
+    # Single variable substitution
+    proc substitution(who = "nobody"): string = tmpl html"""
+        <div id="greeting">hello $who!</div>
+    """
 
-        # Simple example
+    # Expression template
+    proc test_expression(nums: openarray[int] = []): string =
         var i = 2
         tmpl html"""
-            <div id="list">hello $(nums[i])</div>
+            <div id="greeting">hello $(nums[i])</div>
         """
 
-        # Looping example
+    # Statement template
+    proc test_statements(nums: openarray[int] = []): string = ""
         # tmpl html"""
         #     <ul id="list">
         #     ${{for i in nums:
@@ -110,5 +118,11 @@ when isMainModule:
         #     </ul>
         # """
 
-    # Template
-    echo sample([0, 2, 4, 6])
+    # Run template procedures
+    echo no_substitution()
+
+    echo substitution("world")
+
+    echo test_expression([0, 2, 4, 6])
+
+    echo test_statements([0, 2, 4, 6])
