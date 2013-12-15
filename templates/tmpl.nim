@@ -25,6 +25,8 @@ proc check_section(value: string, node: PNimrodNode, index, read: var int): bool
 
         inc(index, 2)
         return true
+
+    # Increment read
     inc(read)
 
 
@@ -40,7 +42,6 @@ proc check_expression(value: string, node: PNimrodNode, index, read: var int) {.
         node.add newCall("add", ident("result"), newCall("$", ident(sub)))
 
 
-
 proc transform(info_string: string, result: PNimrodNode) =
     var transform_string = ""
 
@@ -50,9 +51,9 @@ proc transform(info_string: string, result: PNimrodNode) =
     var index = 0
     while index < info_string.len:
         var sub: string
-        var read = index + info_string.parseUntil(sub, '%', start=index)
+        var read = index + info_string.parseUntil(sub, '$', start=index)
 
-        # Add literal string information up-to the `%` symbol
+        # Add literal string information up-to the `$` symbol
         result.add newCall("add", ident("result"), newStrLitNode(sub))
 
         # Check if we have reached the end of the string
@@ -96,14 +97,15 @@ when isMainModule:
         # Simple example
         var i = 2
         tmpl html"""
-            <div id="list">hello "%(nums[i])"</div>
+            <div id="list">hello $(nums[i])</div>
         """
 
         # Looping example
         # tmpl html"""
         #     <ul id="list">
-        #     %{{for i in nums:
-        #         <li>%i</li>
+        #     ${{for i in nums:
+        #         <li>$i</li>
+        #         <div>execute!</div>
         #     }}
         #     </ul>
         # """

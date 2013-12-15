@@ -56,7 +56,7 @@ when isMainModule:
 
     const script = js"""
         var x = 5;
-        console.log(x.toString())
+        console.log(x.toString());
     """
     echo script
 
