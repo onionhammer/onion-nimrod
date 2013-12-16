@@ -13,6 +13,7 @@ const validChars = {'a'..'z', 'A'..'Z', '0'..'9'}
 proc transform(info_string: string, result: PNimrodNode) {.compileTime.}
 
 proc check_section(value: string, node: PNimrodNode, index, read: var int): bool {.compileTime.} =
+    ## Check for opening of a statement section %{{  }}
     if value.skipWhile({'{'}, index) == 2:
         # Parse value until colon
         var sub: string
@@ -25,14 +26,15 @@ proc check_section(value: string, node: PNimrodNode, index, read: var int): bool
 
         inc(index, 2)
         return true
-
-    # Increment read
-    inc(read)
+    else:
+        inc(read)
 
 
 proc check_expression(value: string, node: PNimrodNode, index, read: var int) {.compileTime.} =
+    ## Check for the opening of an expression, %(), otherwise
+    ## if @ident parse as individual identifier
 
-    # Check for open parenthesis '('
+    # TODO - Check for expr
 
     # Process as individual variable
     var sub: string
@@ -109,14 +111,16 @@ when isMainModule:
 
     # Statement template
     proc test_statements(nums: openarray[int] = []): string = ""
-        # tmpl html"""
-        #     <ul id="list">
-        #     ${{for i in nums:
-        #         <li>$i</li>
-        #         <div>execute!</div>
-        #     }}
-        #     </ul>
-        # """
+    # tmpl html"""
+    #     <ul id="list">
+    #     </ul>
+    # """
+
+    #     ${{for i in nums:
+    #         <li>$i</li>
+    #         <div>execute!</div>
+    #     }}
+
 
     # Run template procedures
     echo no_substitution()
