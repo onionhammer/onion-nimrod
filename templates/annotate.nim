@@ -58,16 +58,12 @@ when isMainModule:
         var x = 5;
         console.log(x.toString());
     """
-    echo script
-
 
     const styles = css"""
         .someRule {
             width: 500px;
         }
     """
-    echo styles
-
 
     const body = html"""
         <ul>
@@ -78,8 +74,6 @@ when isMainModule:
             </li>
         </ul>
     """
-    echo body
-
 
     const info = xml"""
         <item>
@@ -87,7 +81,6 @@ when isMainModule:
             <i>2</i>
         </item>
     """
-    echo info
 
     const shader = glsl"""
         void main()
@@ -97,4 +90,10 @@ when isMainModule:
                         * gl_Vertex;
         }
     """
+
+
+    echo script
+    echo styles
+    echo body
+    echo info
     echo shader

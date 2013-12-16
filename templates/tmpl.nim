@@ -12,6 +12,12 @@ const validChars = {'a'..'z', 'A'..'Z', '0'..'9'}
 # Procedures
 proc transform(info_string: string, result: PNimrodNode) {.compileTime.}
 
+
+proc parse_to_close(value: string, line: var string, index, read: var int, open='(', close=')') {.compileTime.} =
+    ## Parse a value until all opened braces are closed, excluding strings ("" and '')
+    nil
+
+
 proc check_section(value: string, node: PNimrodNode, index, read: var int): bool {.compileTime.} =
     ## Check for opening of a statement section %{{  }}
     if value.skipWhile({'{'}, index) == 2:
@@ -111,16 +117,11 @@ when isMainModule:
 
     # Statement template
     proc test_statements(nums: openarray[int] = []): string = ""
-    # tmpl html"""
-    #     <ul id="list">
-    #     </ul>
-    # """
-
-    #     ${{for i in nums:
-    #         <li>$i</li>
-    #         <div>execute!</div>
-    #     }}
-
+        # tmpl html"""
+        #     <ul>${{for i in nums:
+        #         <li>$i</li>
+        #     }}</ul>
+        # """
 
     # Run template procedures
     echo no_substitution()
