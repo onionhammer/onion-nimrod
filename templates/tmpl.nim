@@ -13,69 +13,101 @@ const validChars = {'a'..'z', 'A'..'Z', '0'..'9'}
 proc transform(info_string: string, result: PNimrodNode) {.compileTime.}
 
 
-proc parse_to_close(value: string, line: var string, index, read: var int, open='(', close=')') {.compileTime.} =
+proc parse_to_close(value: string, line: var string, read: var int, open='(', close=')') {.compileTime.} =
     ## Parse a value until all opened braces are closed, excluding strings ("" and '')
-    nil
+    var remainder = value.substr(read)
+    var i = 0
+    var r = 0
+
+    var open_braces = 0
+    while i < remainder.len-1:
+        var c = remainder[i]
+
+        if   c == open:  inc(open_braces)
+        elif c == close: dec(open_braces)
+        elif c == '"':
+            # Go ahead to next character & find end of string
+            inc(i);
+            while i < remainder.len-1:
+                inc(i, remainder.skipUntil({'\\', '"'}, i))
+                break
+
+        if open_braces == 0: break
+        else: inc(i)
+
+    line = remainder.substr(0, i)
+    inc(read, i+1)
 
 
-proc check_section(value: string, node: PNimrodNode, index, read: var int): bool {.compileTime.} =
+proc check_section(value: string, node: PNimrodNode, read: var int): bool {.compileTime.} =
     ## Check for opening of a statement section %{{  }}
-    if value.skipWhile({'{'}, index) == 2:
+    if value.skipWhile({'{'}, read) == 2:
         # Parse value until colon
         var sub: string
-        var sub_read = value.parseUntil(sub, ':', start=index)
+        var sub_read = value.parseUntil(sub, ':', start=read)
 
         # TODO - Replace statement list with parsed remainder
 
         var expression = parseExpr(sub.substr(2) & ": nil")
         node.add expression
 
-        inc(index, 2)
+        inc(read, 2)
         return true
+
     else:
         inc(read)
 
 
-proc check_expression(value: string, node: PNimrodNode, index, read: var int) {.compileTime.} =
+proc check_expression(value: string, node: PNimrodNode, read: var int) {.compileTime.} =
     ## Check for the opening of an expression, %(), otherwise
     ## if @ident parse as individual identifier
-
-    # TODO - Check for expr
-
-    # Process as individual variable
     var sub: string
-    read += value.parseWhile(sub, validChars, start=read)
 
-    if sub != "":
-        node.add newCall("add", ident("result"), newCall("$", ident(sub)))
+    if value.skipUntil('(', read) == 0:
+        value.parse_to_close(sub, read)
+        node.add newCall("add", ident("result"), newCall("$", parseExpr(sub)))
+
+    else:
+        # Process as individual variable
+        read += value.parseWhile(sub, validChars, start=read)
+
+        if sub != "":
+            node.add newCall("add", ident("result"), newCall("$", ident(sub)))
 
 
 proc transform(info_string: string, result: PNimrodNode) =
-    var transform_string = ""
-
     # Transform info and add to result statement list
     var index = 0
     while index < info_string.len:
         var sub: string
         var read = index + info_string.parseUntil(sub, '$', start=index)
 
-        # Add literal string information up-to the `$` symbol
-        result.add newCall("add", ident("result"), newStrLitNode(sub))
+        # Check for repeating '$'
+        if info_string.substr(read, read + 1) == "$$":
+            # Split string
+            result.add newCall("add", ident("result"), newStrLitNode(sub & "$"))
 
-        # Check if we have reached the end of the string
-        if info_string.len == read:
-            break
+            # Increment to next point
+            index = read + 1
 
-        # Check sections, recursively calls
-        # transform as needed; dropping cursor
-        # back here with updated index & read
-        if not info_string.check_section(result, index, read):
+        else:
+            # Add literal string information up-to the `$` symbol
+            result.add newCall("add", ident("result"), newStrLitNode(sub))
 
-            # Process as individual expression
-            info_string.check_expression(result, index, read)
+            # Check if we have reached the end of the string
+            if info_string.len == read:
+                break
 
-        # Increment to next point
-        index = read
+            # Check sections, recursively calls
+            # transform as needed; dropping cursor
+            # back here with updated index & read
+            if not info_string.check_section(result, read):
+
+                # Process as individual expression
+                info_string.check_expression(result, read)
+
+            # Increment to next point
+            index = read
 
 
 macro tmpl*(body: expr): stmt =
@@ -112,7 +144,7 @@ when isMainModule:
     proc test_expression(nums: openarray[int] = []): string =
         var i = 2
         tmpl html"""
-            <div id="greeting">hello $(nums[i])</div>
+            <div id="greeting">hello $($nums[i] & "!!")</div>
         """
 
     # Statement template
