@@ -27,7 +27,7 @@ proc parse_to_close(value: string, line: var string, read: var int, open="(", cl
     var i = 0
 
     var open_braces = initBraces
-    let diff = open.len - 1
+    let diff        = open.len - 1
 
     while i < remainder.len-1:
         var c = $remainder.substr(i, i + diff)
@@ -40,40 +40,53 @@ proc parse_to_close(value: string, line: var string, read: var int, open="(", cl
         if open_braces == 0: break
         else: inc(i)
 
-    echo remainder
     line = remainder.substr(0, i - diff)
     inc(read, i)
 
 
 proc check_section(value: string, node: PNimrodNode, read: var int): bool {.compileTime.} =
     ## Check for opening of a statement section %{{  }}
+    #TODO
+    # - Handle if/$elif/$else
+    # - Handle case/$of/$else
+    #######
+
     inc(read)
     if value.skipWhile({'{'}, read) == 2:
         # Parse value until colon
         var sub: string
         var sub_read = value.parseUntil(sub, ':', start=read)
 
+        # Skip to end of line, if there are no more non-whitespace
+        # characters at the end of the ":" expression
+        var ws_string: string
+        var ws = value.parseUntil(ws_string, 0xA.char, read + sub_read + 1)
+
+        if ws_string.skipWhitespace != ws: ws = 0
+        else: inc(ws)
+
         # Generate body of statement
+        inc(read, sub_read + 1 + ws)
+
         var body_string: string
-
-        # body_string = value.substr(read + sub_read + 1)
-        read = read + sub_read + 1
-
         value.parse_to_close(body_string, read, open="{{", close="}}", 1)
 
-        # TODO - Replace statement list with parsed remainder
+        # Call transform to transform body of statement
         var i    = 0
         var body = newStmtList()
         transform(body_string, body, i)
 
+        # Substitute body of expression with derived stmt
         var expression = parseExpr(sub.substr(2) & ": nil")
-        var bodyIndex  = macros.high(expression)
-        expression[bodyIndex] = body
+        # var bodyIndex  = macros.high(expression)
+
+        if expression.kind == nnkIfStmt:
+            nil
+        else: expression.body = body
+
+        echo treerepr(expression) #TODO - Remove
 
         node.add expression
-
-        # echo i
-        # echo "etf: ", value.substr(read + sub_read)# + 6)
 
         inc(read, 2)
         return true
@@ -87,6 +100,7 @@ proc check_expression(value: string, node: PNimrodNode, read: var int) {.compile
     if value.skipUntil('(', read) == 0:
         value.parse_to_close(sub, read)
         node.add newCall("add", ident("result"), newCall("$", parseExpr(sub)))
+        inc(read)
 
     else:
         # Process as individual variable
@@ -151,10 +165,14 @@ macro tmpl*(body: expr): stmt =
     )
 
 
+#TODO tmpl open("file") = slurp input file & parse
+
 # Tests
 when isMainModule:
 
     when false:
+        ## Working tests
+
         # No substitution
         proc no_substitution: string = tmpl html"""
             <h1>Template test!</h1>
@@ -174,16 +192,49 @@ when isMainModule:
                 <div id="age">Age: $($nums[i] & "!!")</div>
             """
 
-        echo test_expression([26, 27, 28, 29])
-
-    else:
-        # Statement template
         proc test_statements(nums: openarray[int] = []): string =
             tmpl html"""
-                <ul>${{for i in nums:
+                $(test_expression(nums))
+                <ul>
+                ${{for i in nums:
                     <li>$(i * 2)</li>
                 }}</ul>
             """
+
+        echo test_statements([26, 27, 28, 29])
+
+    elif false:
+        ## Future
+        proc test_if_else: string = tmpl html"""
+            ${{if true:
+                <div>statement is true!</div>
+            $else:
+                <div>statement is false!</div>
+            }}
+        """
+
+        proc test_case: string =
+            const i = 5
+            tmpl html"""
+                ${{case i
+                    $of 5: ding!
+                    $else: nothing
+                }}
+            """
+
+    else:
+        ## In Progress
+        proc test_statements(nums: openarray[int] = []): string =
+
+            tmpl html"""
+                ${{if true:
+                    hello $("do things?")
+                }}
+            """
+            # <ul>
+            # ${{for i in nums:
+            #     <li>$(i * 2)</li>
+            # }}</ul>
 
         # Run template procedures
         echo test_statements([0, 2, 4, 6])
