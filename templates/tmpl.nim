@@ -44,6 +44,18 @@ proc parse_to_close(value: string, line: var string, read: var int, open="(", cl
     inc(read, i)
 
 
+proc make_statement(expression_string: string, body: PNimrodNode): PNimrodNode {.compileTime.} =
+    # Substitute body of expression with derived stmt
+    result = parseExpr(expression_string.substr(2) & ": nil")
+
+    if result.kind == nnkIfStmt:
+        var elifBranch = result[0]
+        var stmtIndex  = macros.high(elifBranch)
+        elifBranch[stmtIndex] = body
+
+    else: result.body = body
+
+
 proc check_section(value: string, node: PNimrodNode, read: var int): bool {.compileTime.} =
     ## Check for opening of a statement section %{{  }}
     #TODO
@@ -76,17 +88,8 @@ proc check_section(value: string, node: PNimrodNode, read: var int): bool {.comp
         var body = newStmtList()
         transform(body_string, body, i)
 
-        # Substitute body of expression with derived stmt
-        var expression = parseExpr(sub.substr(2) & ": nil")
-        # var bodyIndex  = macros.high(expression)
-
-        if expression.kind == nnkIfStmt:
-            nil
-        else: expression.body = body
-
-        echo treerepr(expression) #TODO - Remove
-
-        node.add expression
+        # Append to generated code
+        node.add make_statement(sub, body)
 
         inc(read, 2)
         return true
@@ -195,10 +198,12 @@ when isMainModule:
         proc test_statements(nums: openarray[int] = []): string =
             tmpl html"""
                 $(test_expression(nums))
-                <ul>
-                ${{for i in nums:
-                    <li>$(i * 2)</li>
-                }}</ul>
+                ${{if false:
+                    <ul>
+                    ${{for i in nums:
+                        <li>$(i * 2)</li>
+                    }}</ul>
+                }}
             """
 
         echo test_statements([26, 27, 28, 29])
@@ -206,11 +211,17 @@ when isMainModule:
     elif false:
         ## Future
         proc test_if_else: string = tmpl html"""
-            ${{if true:
+            $if true: {{
                 <div>statement is true!</div>
-            $else:
+            }}
+            $else: {{
                 <div>statement is false!</div>
             }}
+            <ul>
+            $for x in [0,1,2]: {{
+                <li>$x</li>
+            }}
+            </ul>
         """
 
         proc test_case: string =
@@ -227,14 +238,15 @@ when isMainModule:
         proc test_statements(nums: openarray[int] = []): string =
 
             tmpl html"""
-                ${{if true:
+                ${{if 5 * 5 == 25:
                     hello $("do things?")
                 }}
-            """
-            # <ul>
-            # ${{for i in nums:
-            #     <li>$(i * 2)</li>
-            # }}</ul>
+                <ul>
+                ${{for i in nums:
+                    <li>$(i * 2)</li>
+                }}</ul>
+                """
+
 
         # Run template procedures
         echo test_statements([0, 2, 4, 6])
