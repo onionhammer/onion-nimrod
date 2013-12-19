@@ -1,100 +1,95 @@
+# Ref: http://nimrod-lang.org/macros.html
+discard """
+Template Parser Logic
+- $ means 'parse_expression'
+    - ( means parse as simple single-line expression.
+    - { means open statement list
+    - for/while means open simple statement
+    - if/when/case/try means complex statement
+    - Otherwise parse while valid identChars and make expression w/ $
+- When statement block is opened {, skip EOL after
+- When statement block is closed }, skip EOL after
+- Call reindent on statement substrings, to the level of indentation
+  as the opening of the first line w/ the $
+"""
+
 # Imports
 import tables, parseutils, macros
 import annotate
 
 
 # Fields
-const validChars = {'a'..'z', 'A'..'Z', '0'..'9', '_'}
+const identChars = {'a'..'z', 'A'..'Z', '0'..'9', '_'}
 
 
 # Procedure Declarations
-proc parseThroughString*(strType = '"') {.compiletime.}
+proc parse_through_string*(quote = '"') {.compiletime.}
     ## Parses until ending " or ' is reached.
 
 
-proc parseToClose*(open="(", close=")", opened=0) {.compiletime.}
-    ## Parses a string until all opened braces are closed
+proc parse_thru_eol* {.compiletime.}
+    ## Reads until and past the end of the current line, unless
+    ## a non-whitespace character is encountered first
+
+
+proc parse_to_close*(open="(", close=")", opened=0) {.compiletime.}
+    ## Reads until all opened braces are closed
     ## ignoring any strings "" or ''
 
 
-proc parseIfWhen* {.compiletime.}
-    ## Parses if/when /elif /else statements
+proc parse_if_when_try* {.compiletime.}
+    ## Parses if/when/try /elif /else /except /finally statements
 
 
-proc parseCase* {.compiletime.}
+proc parse_case* {.compiletime.}
     ## Parses case /of /else statements
 
 
-proc parseGeneralStatement* {.compiletime.}
+proc parse_simple_statement* {.compiletime.}
     ## Parses for/while
 
+proc parse_stmt_list* {.compiletime.}
+    ## Parses unguided ${} block
 
-proc parseExpression* {.compiletime.}
+
+proc parse_expression* {.compiletime.}
     ## Determine what to do once a $ is encountered
 
 
-proc parseUntilSymbol* {.compiletime.}
+proc parse_until_symbol* {.compiletime.}
     ## Parses a string until a $ symbol is encountered, if
     ## two $$'s are encountered in a row, a split will happen
     ## removing one of the $'s from the resulting output
 
 
+proc parse_template*(node: PNimrodNode, value: string) {.compiletime.}
+    ## Parses through entire template, outputing valid
+    ## Nimrod code into the input `node` AST.
+
+
 # Procedure Definitions
+proc substring(value: string, index: int, length = 0): string {.compiletime.} =
+    return if length == 0: value.substr(index)
+           else:           value.substr(index, index + length-1)
 
 
-# Tests
+proc parse_template*(node: PNimrodNode, value: string) =
+    echo value
+
+
+macro tmpl(body: expr): stmt =
+    result = newStmtList()
+
+    var value = if body.kind in nnkStrLit..nnkTripleStrLit: body
+                else: body[1]
+
+    parse_template(result, reindent($toStrLit(value)))
+
+
+# Run tests
 when isMainModule:
+    include tests
 
-    const x = 5
-
-    const no_substitution = html"""
-        <p>Test!</p>
-    """
-
-    const basic = html"""
-        <p>Test $$x</p>
-        $x
-    """
-
-    const expression = html"""
-        <p>Test $$(x * 5)</p>
-        $(x * 5)
-    """
-
-    const forIn = html"""
-        <p>Test for</p>
-        <ul>
-        $for y in [0,1,2]: {{
-            <li>$y</li>
-        }}
-        </ul>
-    """
-
-    const ifElifElse = html"""
-        <p>Test if/elif/else</p>
-        $if x == 8: {{
-            <div>x is 8!</div>
-        }}
-        $elif x == 7: {{
-            <div>x is 7!</div>
-        }}
-        $else: {{
-            <div>x is neither!</div>
-        }}
-    """
-
-    const caseOfElse = html"""
-        <p>Test case</p>
-        $case x
-        of 5: {{
-            <div>x == 5</div>
-        }}
-        of 6: {{
-            <div>x == 6</div>
-        }}
-        else: {{
-            <div>x == ?</div>
-        }}
-    """
-
-    {.fatal:"TASK COMPLETE".}
+    when not defined(release):
+        static:
+            quit("TASK COMPLETE")
