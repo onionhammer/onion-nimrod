@@ -1,4 +1,3 @@
-
 # Fields
 const x = 5
 
@@ -11,20 +10,19 @@ static:
 
 
 # Various parsing tests
-block: #no_substitution
-    proc actual: string = tmpl html"""
-        <p>Test!</p>
-    """
-    const expected = html"""
-        <p>Test!</p>
-    """
-    assert actual() == expected
-
-
 when false:
+    block: #no_substitution
+        proc actual: string = tmpl html"""
+            <p>Test!</p>
+        """
+        const expected = html"""
+            <p>Test!</p>
+        """
+        echo actual()
+        assert actual() == expected
 
     block: #basic
-        proc actual = tmpl html"""
+        proc actual: string = tmpl html"""
             <p>Test $$x</p>
             $x
         """
@@ -32,10 +30,11 @@ when false:
             <p>Test $x</p>
             5
         """
+        echo actual()
         assert actual() == expected
 
     block: #expression
-        proc actual = html"""
+        proc actual: string = tmpl html"""
             <p>Test $$(x * 5)</p>
             $(x * 5)
         """
@@ -43,29 +42,33 @@ when false:
             <p>Test $(x * 5)</p>
             25
         """
+        echo actual()
         assert actual() == expected
 
-    block: #forIn
-        proc actual = html"""
-            <p>Test for</p>
-            <ul>
-                $for y in [0, 1, 2] {
-                    <li>$y</li>
-                }
-            </ul>
-        """
-        const expected = html"""
-            <p>Test for</p>
-            <ul>
-                <li>0</li>
-                <li>1</li>
-                <li>2</li>
-            </ul>
-        """
-        assert actual() == expected
+block: #forIn
+    proc actual: string = tmpl html"""
+        <p>Test for</p>
+        <ul>
+            $for y in [0, 1, 2] {
+                <li>$y</li>
+            }
+        </ul>
+    """
+    const expected = html"""
+        <p>Test for</p>
+        <ul>
+            <li>0</li>
+            <li>1</li>
+            <li>2</li>
+        </ul>
+    """
+    echo actual()
+    assert actual() == expected
+
+when false:
 
     block: #ifElifElse
-        proc actual = html"""
+        proc actual: string = tmpl html"""
             <p>Test if/elif/else</p>
             $if x == 8 {
                 <div>x is 8!</div>
@@ -81,10 +84,11 @@ when false:
             <p>Test if/elif/else</p>
             <div>x is neither!</div>
         """
+        echo actual()
         assert actual() == expected
 
     block: #caseOfElse
-        proc actual = html"""
+        proc actual: string = tmpl html"""
             <p>Test case</p>
             $case x
             $of 5 {
@@ -101,4 +105,5 @@ when false:
             <p>Test case</p>
             <div>x == 5</div>
         """
+        echo actual()
         assert actual() == expected
