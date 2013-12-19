@@ -22,6 +22,7 @@ macro make(names: openarray[expr]): stmt {.immediate.} =
 
 proc reindent*(value: string): string {.noinit.} =
     #Detect indentation
+    #TODO Improve detection; take the MIN indent rather than FIRST indent
     let length = value.len
     let indent = skipWhitespace(value)
 
