@@ -29,21 +29,11 @@ const identChars = {'a'..'z', 'A'..'Z', '0'..'9', '_'}
 proc parse_until_symbol*(node: PNimrodNode, value: string, index: var int): bool {.compiletime.}
 proc parse_template*(node: PNimrodNode, value: string) {.compiletime.}
 
-# proc parse_through_string*(quote = '"') {.compiletime.}
-#     ## Parses until ending " or ' is reached.
-
 # proc parse_if_when_try* {.compiletime.}
 #     ## Parses if/when/try /elif /else /except /finally statements
 
 # proc parse_case* {.compiletime.}
 #     ## Parses case /of /else statements
-
-# proc parse_stmt_list* {.compiletime.}
-#     ## Parses unguided ${} block
-
-# proc parse_expression* {.compiletime.}
-#     ## Determine what to do once a $ is encountered
-
 
 # Procedure Definitions
 proc substring(value: string, index: int, length = 0): string =
@@ -104,6 +94,19 @@ proc parse_to_close*(value: string, index: int, open='(', close=')', opened=0): 
         else: inc(result)
 
 
+proc parse_stmt_list*(value: string, index: var int): PNimrodNode {.compiletime.} =
+    ## Parses unguided ${} block
+    var read = value.parse_to_close(index, open='{', close='}')
+
+    result = parseStmt(
+        value.substring(index + 1, read - 1)
+    )
+
+    #Increment index & parse thru EOL
+    inc(index, read + 1)
+    inc(index, value.parse_thru_eol(index))
+
+
 proc parse_simple_statement(node: PNimrodNode, value: string, index: var int) {.compiletime.} =
     ## Parses for/while
 
@@ -159,15 +162,7 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
         of '{':
             # Check for open `{`, which means open statement list
             trim_eol(splitValue)
-
-            read = value.parse_to_close(index, open='{', close='}')
-            node.add parseStmt(
-                value.substring(index + 1, read - 1)
-            )
-            inc(index, read + 1)
-
-            #Parse thru EOL
-            inc(index, value.parse_thru_eol(index))
+            node.add value.parse_stmt_list(index)
 
         else:
             # Otherwise parse while valid `identChars` and make expression w/ $
@@ -181,6 +176,7 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
             elif identifier in ["if", "when", "case", "try"]:
                 ## if/when/case/try means complex statement
                 echo "TODO - Parse complex statement"
+
                 inc(index, read)
 
             elif identifier.len > 0:
