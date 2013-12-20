@@ -6,6 +6,7 @@
 # Imports
 import tables, parseutils, macros
 import annotate
+export annotate
 
 
 # Fields
@@ -281,8 +282,6 @@ macro tmpl*(body: expr): stmt =
                 else: body[1]
 
     parse_template(result, reindent($toStrLit(value)))
-
-    echo treerepr(result)
 
 
 # Run tests
