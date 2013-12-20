@@ -104,7 +104,7 @@ block: #ifElifElse
     """
     const expected = html"""
         <p>Test if/elif/else</p>
-        <div>x is neither!</div>
+            <div>x is neither!</div>
     """
     echo actual()
     assert actual() == expected

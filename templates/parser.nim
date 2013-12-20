@@ -26,14 +26,8 @@ const identChars = {'a'..'z', 'A'..'Z', '0'..'9', '_'}
 
 
 # Procedure Declarations
-proc parse_until_symbol*(node: PNimrodNode, value: string, index: var int): bool {.compiletime.}
 proc parse_template*(node: PNimrodNode, value: string) {.compiletime.}
 
-# proc parse_if_when_try* {.compiletime.}
-#     ## Parses if/when/try /elif /else /except /finally statements
-
-# proc parse_case* {.compiletime.}
-#     ## Parses case /of /else statements
 
 # Procedure Definitions
 proc substring(value: string, index: int, length = 0): string =
@@ -68,7 +62,7 @@ proc trim_eol(value: var string) =
         if not (value[i] in [' ', '\t']): break
 
 
-proc parse_through_string(value: string, i: var int, strType = '"') =
+proc parse_thru_string(value: string, i: var int, strType = '"') =
     ## Parses until ending " or ' is reached.
     inc(i)
     if i < value.len-1:
@@ -87,8 +81,8 @@ proc parse_to_close*(value: string, index: int, open='(', close=')', opened=0): 
 
         if   c == open:  inc(open_braces)
         elif c == close: dec(open_braces)
-        elif c == '"':   remainder.parse_through_string(result)
-        elif c == '\'':  remainder.parse_through_string(result, '\'')
+        elif c == '"':   remainder.parse_thru_string(result)
+        elif c == '\'':  remainder.parse_thru_string(result, '\'')
 
         if open_braces == 0: break
         else: inc(result)
@@ -107,13 +101,88 @@ proc parse_stmt_list*(value: string, index: var int): PNimrodNode {.compiletime.
     inc(index, value.parse_thru_eol(index))
 
 
-proc parse_simple_statement(node: PNimrodNode, value: string, index: var int) {.compiletime.} =
+iterator parse_compound_statements(value, identifier: string, index: int): string =
+
+    template get_next_ident(expected): stmt =
+        var next: string
+        var nextIdent: string
+        var read = value.parseUntil(next, '{', i)
+        discard next.parseWhile(nextIdent, {'$'} + identChars, 0)
+
+        if nextIdent in expected:
+            inc(i, read)
+            # Parse until closing }, then skip whitespace afterwards
+            read = value.parse_to_close(i, open='{', close='}')
+            inc(i, read + 1)
+            inc(i, value.skipWhitespace(i))
+
+            yield next & ": nil\n"
+
+        else: break
+
+
+    var i = index
+    while true:
+        # Check if next statement would be valid, given the identifier
+        if identifier in ["if", "when"]:
+            get_next_ident([identifier, "$elif", "$else"])
+
+        elif identifier == "case":
+            get_next_ident(["case", "$of", "$elif", "$else"])
+
+        elif identifier == "try":
+            get_next_ident(["try", "$except", "$finally"])
+
+
+proc parse_complex_stmt(value, identifier: string, index: var int): PNimrodNode {.compiletime.} =
+    ## Parses if/when/try /elif /else /except /finally statements
+
+    # Build up complex statement string
+    var stmtString = newString(0)
+    var numStatements = 0
+    for statement in value.parse_compound_statements(identifier, index):
+        if statement[0] == '$': stmtString.add(statement.substr(1))
+        else: stmtString.add(statement)
+        inc(numStatements)
+
+    # Parse stmt string
+    result = parseExpr(stmtString)
+
+    var resultIndex = 0
+    while resultIndex < numStatements:
+
+        # Parse until an open brace `{`
+        var read = value.skipUntil('{', index)
+        inc(index, read + 1)
+
+        # Parse through EOL
+        inc(index, value.parse_thru_eol(index))
+
+        # Parse through { .. }
+        read = value.parse_to_close(index, open='{', close='}', opened=1)
+
+        # Add parsed sub-expression into body
+        var body = newStmtList()
+        var stmtString = value.substring(index, read)
+        parse_template(body, stmtString)
+        inc(index, read + 1)
+
+        # Insert body into result
+        var stmtIndex = macros.high(result[resultIndex])
+        result[resultIndex][stmtIndex] = body
+
+        # Parse through EOL again & increment result index
+        inc(index, value.parse_thru_eol(index))
+        inc(resultIndex)
+
+
+proc parse_simple_statement(value: string, index: var int): PNimrodNode {.compiletime.} =
     ## Parses for/while
 
     # Parse until an open brace `{`
     var splitValue: string
     var read       = value.parseUntil(splitValue, '{', index)
-    var expression = parseExpr(splitValue & ":nil")
+    result         = parseExpr(splitValue & ":nil")
     inc(index, read + 1)
 
     # Parse through EOL
@@ -127,16 +196,15 @@ proc parse_simple_statement(node: PNimrodNode, value: string, index: var int) {.
     parse_template(body, value.substring(index, read))
     inc(index, read + 1)
 
-    var stmtIndex = macros.high(expression)
-    expression[stmtIndex] = body
-
-    node.add(expression)
+    # Insert body into result
+    var stmtIndex = macros.high(result)
+    result[stmtIndex] = body
 
     # Parse through EOL again
     inc(index, value.parse_thru_eol(index))
 
 
-proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool =
+proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool {.compiletime.} =
     ## Parses a string until a $ symbol is encountered, if
     ## two $$'s are encountered in a row, a split will happen
     ## removing one of the $'s from the resulting output
@@ -171,13 +239,12 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
 
             if identifier in ["for", "while"]:
                 ## for/while means open simple statement
-                parse_simple_statement(node, value, index)
+                node.add value.parse_simple_statement(index)
 
             elif identifier in ["if", "when", "case", "try"]:
                 ## if/when/case/try means complex statement
-                echo "TODO - Parse complex statement"
-
-                inc(index, read)
+                trim_eol(splitValue)
+                node.add value.parse_complex_stmt(identifier, index)
 
             elif identifier.len > 0:
                 ## Treat as simple variable
