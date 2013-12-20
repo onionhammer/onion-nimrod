@@ -69,6 +69,11 @@ proc trim_eol(value: var string) =
             value = value.substr(0, i)
             break
 
+        # This is the first character
+        if i == 0:
+            value = ""
+            break
+
         # Skip change
         if not (value[i] in [' ', '\t']): break
 
@@ -186,7 +191,8 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
         result = true
 
     # Insert
-    node.insert insertionPoint, newCall("add", ident("result"), newStrLitNode(splitValue))
+    if splitValue.len > 0:
+        node.insert insertionPoint, newCall("add", ident("result"), newStrLitNode(splitValue))
 
 
 proc parse_template*(node: PNimrodNode, value: string) =

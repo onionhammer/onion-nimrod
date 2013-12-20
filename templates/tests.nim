@@ -10,7 +10,7 @@ static:
 
 
 # Various parsing tests
-when true:
+when false:
     block: #no_substitution
         proc actual: string = tmpl html"""
             <p>Test!</p>
