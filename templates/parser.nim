@@ -238,7 +238,8 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
 
         of '(':
             # Check for open `(`, which means parse as simple single-line expression.
-            read = value.parse_to_close(index, opened=1) - 2
+            trim_eol(splitValue)
+            read = value.parse_to_close(index) + 1
             node.add newCall("add", ident("result"), parseExpr("$" & value.substring(index, read)))
             inc(index, read)
 
@@ -291,6 +292,7 @@ macro tmpl(body: expr): stmt =
 
     parse_template(result, reindent($toStrLit(value)))
 
+    echo treerepr(result)
 
 # Run tests
 when isMainModule:

@@ -10,7 +10,7 @@ static:
 
 
 # Various parsing tests
-when false:
+when true:
 
     block: #no_substitution
         proc actual: string = tmpl html"""
@@ -130,23 +130,70 @@ when false:
         echo actual()
         assert actual() == expected
 
-block: #tryCatch
-    proc actual: string = tmpl html"""
-        <p>Test try/catch</p>
-        <div>
-            $try {
-                <div>Lets try this!</div>
-            }
-            $except {
-                <div>Uh oh!</div>
-            }
-        </div>
+block: #embeddingTest
+    proc no_substitution: string = tmpl html"""
+        <h1>Template test!</h1>
     """
+
+    # # Single variable substitution
+    proc substitution(who = "nobody"): string = tmpl html"""
+        <div id="greeting">hello $who!</div>
+    """
+
+    # Expression template
+    proc test_expression(nums: openarray[int] = []): string =
+        var i = 2
+        tmpl html"""
+            $(no_substitution())
+            $(substitution("Billy"))
+            <div id="age">Age: $($nums[i] & "!!")</div>
+        """
+
+    proc test_statements(nums: openarray[int] = []): string =
+        tmpl html"""
+            $(test_expression(nums))
+            $if true {
+                <ul>
+                $for i in nums {
+                    <li>$(i * 2)</li>
+                }
+                </ul>
+            }
+        """
+
+    var actual = test_statements([0,1,2])
     const expected = html"""
-        <p>Test try/catch</p>
-        <div>
-                <div>Lets try this!</div>
-        </div>
+        <h1>Template test!</h1>
+        <div id="greeting">hello Billy!</div>
+        <div id="age">Age: 2!!</div>
+            <ul>
+                <li>0</li>
+                <li>2</li>
+                <li>4</li>
+            </ul>
     """
-    echo actual()
-    assert actual() == expected
+    echo actual
+    assert actual == expected
+
+
+when defined(future):
+    block: #tryCatch
+        proc actual: string = tmpl html"""
+            <p>Test try/catch</p>
+            <div>
+                $try {
+                    <div>Lets try this!</div>
+                }
+                $except {
+                    <div>Uh oh!</div>
+                }
+            </div>
+        """
+        const expected = html"""
+            <p>Test try/catch</p>
+            <div>
+                    <div>Lets try this!</div>
+            </div>
+        """
+        echo actual()
+        assert actual() == expected
