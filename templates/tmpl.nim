@@ -1,159 +1,278 @@
+# Ref:
+# http://nimrod-lang.org/macros.html
+# http://nimrod-lang.org/parseutils.html
+
+
+# Imports
 import tables, parseutils, macros
 import annotate
 
-#TODO - Remove me
-import os, json, marshal, strutils
-
 
 # Fields
-const validChars = {'a'..'z', 'A'..'Z', '0'..'9', '_'}
+const identChars = {'a'..'z', 'A'..'Z', '0'..'9', '_'}
 
 
-# Procedures
-proc transform(info_string: string, result: PNimrodNode, index: var int) {.compileTime.}
+# Procedure Declarations
+proc parse_template(node: PNimrodNode, value: string) {.compiletime.}
 
 
-proc skip_string(value: string, i: var int, strType = '"') {.compileTime.} =
-    # Go ahead to next character & find end of string
+# Procedure Definitions
+proc substring(value: string, index: int, length = 0): string {.compiletime.} =
+    return if length == 0: value.substr(index)
+           else:           value.substr(index, index + length-1)
+
+
+proc parse_thru_eol(value: string, index: int): int {.compiletime.} =
+    ## Reads until and past the end of the current line, unless
+    ## a non-whitespace character is encountered first
+    var remainder: string
+    var read = value.parseUntil(remainder, {0x0A.char}, index)
+    if remainder.skipWhitespace() == read:
+        return read + 1
+
+
+proc trim_eol(value: var string) {.compiletime.} =
+    ## Removes everything after the last line if it contains nothing but whitespace
+    var ending = value.len - 1
+    for i in countdown(ending, 0):
+        # If \n, trim and return
+        if value[i] == 0x0A.char:
+            value = value.substr(0, i)
+            break
+
+        # This is the first character
+        if i == 0:
+            value = ""
+            break
+
+        # Skip change
+        if not (value[i] in [' ', '\t']): break
+
+
+proc parse_thru_string(value: string, i: var int, strType = '"') {.compiletime.} =
+    ## Parses until ending " or ' is reached.
     inc(i)
-    while i < value.len-1:
+    if i < value.len-1:
         inc(i, value.skipUntil({'\\', strType}, i))
-        break
 
 
-proc parse_to_close(value: string, line: var string, read: var int, open="(", close=")", initBraces = 0) {.compileTime.} =
-    ## Parse a value until all opened braces are closed, excluding strings ("" and '')
-    var remainder = value.substr(read)
-    var i = 0
+proc parse_to_close(value: string, index: int, open='(', close=')', opened=0): int {.compiletime.} =
+    ## Reads until all opened braces are closed
+    ## ignoring any strings "" or ''
+    var remainder   = value.substring(index)
+    var open_braces = opened
+    result = 0
 
-    var open_braces = initBraces
-    let diff        = open.len - 1
-
-    while i < remainder.len-1:
-        var c = $remainder.substr(i, i + diff)
+    while result < remainder.len:
+        var c = remainder[result]
 
         if   c == open:  inc(open_braces)
         elif c == close: dec(open_braces)
-        elif c == "\"":  skip_string(remainder, i)
-        elif c == "'":   skip_string(remainder, i, '\'')
+        elif c == '"':   remainder.parse_thru_string(result)
+        elif c == '\'':  remainder.parse_thru_string(result, '\'')
 
         if open_braces == 0: break
-        else: inc(i)
-
-    line = remainder.substr(0, i - diff)
-    inc(read, i)
+        else: inc(result)
 
 
-proc make_statement(expression_string: string, body: PNimrodNode): PNimrodNode {.compileTime.} =
-    # Substitute body of expression with derived stmt
-    result = parseExpr(expression_string.substr(2) & ": nil")
+proc parse_stmt_list(value: string, index: var int): PNimrodNode {.compiletime.} =
+    ## Parses unguided ${..} block
+    var read = value.parse_to_close(index, open='{', close='}')
 
-    if result.kind == nnkIfStmt:
-        var elifBranch = result[0]
-        var stmtIndex  = macros.high(elifBranch)
-        elifBranch[stmtIndex] = body
+    result = parseStmt(
+        value.substring(index + 1, read - 1)
+    )
 
-    else: result.body = body
-
-
-proc check_section(value: string, node: PNimrodNode, read: var int): bool {.compileTime.} =
-    ## Check for opening of a statement section %{{  }}
-    #TODO
-    # - Handle if/$elif/$else
-    # - Handle case/$of/$else
-    #######
-
-    inc(read)
-    if value.skipWhile({'{'}, read) == 2:
-        # Parse value until colon
-        var sub: string
-        var sub_read = value.parseUntil(sub, ':', start=read)
-
-        # Skip to end of line, if there are no more non-whitespace
-        # characters at the end of the ":" expression
-        var ws_string: string
-        var ws = value.parseUntil(ws_string, 0xA.char, read + sub_read + 1)
-
-        if ws_string.skipWhitespace != ws: ws = 0
-        else: inc(ws)
-
-        # Generate body of statement
-        inc(read, sub_read + 1 + ws)
-
-        var body_string: string
-        value.parse_to_close(body_string, read, open="{{", close="}}", 1)
-
-        # Call transform to transform body of statement
-        var i    = 0
-        var body = newStmtList()
-        transform(body_string, body, i)
-
-        # Append to generated code
-        node.add make_statement(sub, body)
-
-        inc(read, 2)
-        return true
+    #Increment index & parse thru EOL
+    inc(index, read + 1)
+    inc(index, value.parse_thru_eol(index))
 
 
-proc check_expression(value: string, node: PNimrodNode, read: var int) {.compileTime.} =
-    ## Check for the opening of an expression, %(), otherwise
-    ## if @ident parse as individual identifier
-    var sub: string
+iterator parse_compound_statements(value, identifier: string, index: int): string =
+    ## Parses through several statements, i.e. if {} elif {} else {}
+    ## and returns the initialization of each as an empty statement
+    ## i.e. if x == 5 { ... } becomes if x == 5: nil.
 
-    if value.skipUntil('(', read) == 0:
-        value.parse_to_close(sub, read)
-        node.add newCall("add", ident("result"), newCall("$", parseExpr(sub)))
-        inc(read)
+    template get_next_ident(expected): stmt =
+        var nextIdent: string
+        discard value.parseWhile(nextIdent, {'$'} + identChars, i)
 
-    else:
-        # Process as individual variable
-        read += value.parseWhile(sub, validChars, start=read)
+        var next: string
+        var read: int
 
-        if sub != "":
-            node.add newCall("add", ident("result"), newCall("$", ident(sub)))
-
-
-proc transform(info_string: string, result: PNimrodNode, index: var int) =
-    # Transform info and add to result statement list
-    while index < info_string.len:
-
-        # TODO - Skip string '"'
-
-        var sub: string
-        var read = index + info_string.parseUntil(sub, '$', start=index)
-
-        # Check for repeating '$'
-        if info_string.substr(read, read + 1) == "$$":
-            # Split string
-            result.add newCall("add", ident("result"), newStrLitNode(sub & "$"))
-
-            # Increment to next point
-            index = read + 1
+        if nextIdent == "case":
+            # We have to handle case a bit differently
+            read = value.parseUntil(next, '$', i)
+            inc(i, read)
+            yield next
 
         else:
-            # Add literal string information up-to the `$` symbol
-            result.add newCall("add", ident("result"), newStrLitNode(sub))
+            read = value.parseUntil(next, '{', i)
 
-            # Check if we have reached the end of the string
-            if read == info_string.len:
-                index = read
-                break
+            if nextIdent in expected:
+                inc(i, read)
+                # Parse until closing }, then skip whitespace afterwards
+                read = value.parse_to_close(i, open='{', close='}')
+                inc(i, read + 1)
+                inc(i, value.skipWhitespace(i))
 
-            # Check sections, recursively calls
-            # transform as needed; dropping cursor
-            # back here with updated index & read
-            if not info_string.check_section(result, read):
-                # Process as individual expression
-                info_string.check_expression(result, read)
+                yield next & ": nil\n"
 
-            # Increment to next point
-            index = read
+            else: break
+
+
+    var i = index
+    while true:
+        # Check if next statement would be valid, given the identifier
+        if identifier in ["if", "when"]:
+            get_next_ident([identifier, "$elif", "$else"])
+
+        elif identifier == "case":
+            get_next_ident(["case", "$of", "$elif", "$else"])
+
+        elif identifier == "try":
+            get_next_ident(["try", "$except", "$finally"])
+
+
+proc parse_complex_stmt(value, identifier: string, index: var int): PNimrodNode {.compiletime.} =
+    ## Parses if/when/try /elif /else /except /finally statements
+
+    # Build up complex statement string
+    var stmtString = newString(0)
+    var numStatements = 0
+    for statement in value.parse_compound_statements(identifier, index):
+        if statement[0] == '$': stmtString.add(statement.substr(1))
+        else: stmtString.add(statement)
+        inc(numStatements)
+
+    # Parse stmt string
+    result = parseExpr(stmtString)
+
+    var resultIndex = 0
+
+    # Fast forward a bit if this is a case statement
+    if identifier == "case":
+        inc(resultIndex)
+
+    while resultIndex < numStatements:
+
+        # Parse until an open brace `{`
+        var read = value.skipUntil('{', index)
+        inc(index, read + 1)
+
+        # Parse through EOL
+        inc(index, value.parse_thru_eol(index))
+
+        # Parse through { .. }
+        read = value.parse_to_close(index, open='{', close='}', opened=1)
+
+        # Add parsed sub-expression into body
+        var body = newStmtList()
+        var stmtString = value.substring(index, read)
+        parse_template(body, stmtString)
+        inc(index, read + 1)
+
+        # Insert body into result
+        var stmtIndex = macros.high(result[resultIndex])
+        result[resultIndex][stmtIndex] = body
+
+        # Parse through EOL again & increment result index
+        inc(index, value.parse_thru_eol(index))
+        inc(resultIndex)
+
+
+proc parse_simple_statement(value: string, index: var int): PNimrodNode {.compiletime.} =
+    ## Parses for/while
+
+    # Parse until an open brace `{`
+    var splitValue: string
+    var read       = value.parseUntil(splitValue, '{', index)
+    result         = parseExpr(splitValue & ":nil")
+    inc(index, read + 1)
+
+    # Parse through EOL
+    inc(index, value.parse_thru_eol(index))
+
+    # Parse through { .. }
+    read = value.parse_to_close(index, open='{', close='}', opened=1)
+
+    # Add parsed sub-expression into body
+    var body = newStmtList()
+    parse_template(body, value.substring(index, read))
+    inc(index, read + 1)
+
+    # Insert body into result
+    var stmtIndex = macros.high(result)
+    result[stmtIndex] = body
+
+    # Parse through EOL again
+    inc(index, value.parse_thru_eol(index))
+
+
+proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool {.compiletime.} =
+    ## Parses a string until a $ symbol is encountered, if
+    ## two $$'s are encountered in a row, a split will happen
+    ## removing one of the $'s from the resulting output
+    var splitValue: string
+    var read = value.parseUntil(splitValue, '$', index)
+    var insertionPoint = node.len
+
+    inc(index, read + 1)
+    if index < value.len:
+
+        case value[index]
+        of '$':
+            # Check for duplicate `$`, meaning this is an escaped $
+            node.add newCall("add", ident("result"), newStrLitNode("$"))
+            inc(index, 1)
+
+        of '(':
+            # Check for open `(`, which means parse as simple single-line expression.
+            trim_eol(splitValue)
+            read = value.parse_to_close(index) + 1
+            node.add newCall("add", ident("result"), parseExpr("$" & value.substring(index, read)))
+            inc(index, read)
+
+        of '{':
+            # Check for open `{`, which means open statement list
+            trim_eol(splitValue)
+            node.add value.parse_stmt_list(index)
+
+        else:
+            # Otherwise parse while valid `identChars` and make expression w/ $
+            var identifier: string
+            read = value.parseWhile(identifier, identChars, index)
+
+            if identifier in ["for", "while"]:
+                ## for/while means open simple statement
+                node.add value.parse_simple_statement(index)
+
+            elif identifier in ["if", "when", "case", "try"]:
+                ## if/when/case/try means complex statement
+                trim_eol(splitValue)
+                node.add value.parse_complex_stmt(identifier, index)
+
+            elif identifier.len > 0:
+                ## Treat as simple variable
+                node.add newCall("add", ident("result"), newCall("$", ident(identifier)))
+                inc(index, read)
+
+        result = true
+
+    # Insert
+    if splitValue.len > 0:
+        node.insert insertionPoint, newCall("add", ident("result"), newStrLitNode(splitValue))
+
+
+proc parse_template(node: PNimrodNode, value: string) =
+    ## Parses through entire template, outputing valid
+    ## Nimrod code into the input `node` AST.
+    var index = 0
+    while index < value.len and
+          parse_until_symbol(node, value, index): nil
 
 
 macro tmpl*(body: expr): stmt =
-    ## Transform `tmpl` body into nimrod code
-    ## Put body into procedure named `name`
-    ## which returns type `string`
     result = newStmtList()
 
     result.add parseExpr("if result == nil: result = \"\"")
@@ -161,116 +280,11 @@ macro tmpl*(body: expr): stmt =
     var value = if body.kind in nnkStrLit..nnkTripleStrLit: body
                 else: body[1]
 
-    var index = 0
-    transform(
-        reindent($toStrLit(value)),
-        result, index
-    )
+    parse_template(result, reindent($toStrLit(value)))
+
+    echo treerepr(result)
 
 
-#TODO tmpl open("file") = slurp input file & parse
-
-# Tests
+# Run tests
 when isMainModule:
-
-    when false:
-        ## Working tests
-
-        # No substitution
-        proc no_substitution: string = tmpl html"""
-            <h1>Template test!</h1>
-        """
-
-        # Single variable substitution
-        proc substitution(who = "nobody"): string = tmpl html"""
-            <div id="greeting">hello $who!</div>
-        """
-
-        # Expression template
-        proc test_expression(nums: openarray[int] = []): string =
-            var i = 2
-            tmpl html"""
-                $(no_substitution())
-                $(substitution("Billy"))
-                <div id="age">Age: $($nums[i] & "!!")</div>
-            """
-
-        proc test_statements(nums: openarray[int] = []): string =
-            tmpl html"""
-                $(test_expression(nums))
-                ${{if false:
-                    <ul>
-                    ${{for i in nums:
-                        <li>$(i * 2)</li>
-                    }}</ul>
-                }}
-            """
-
-        echo test_statements([26, 27, 28, 29])
-
-    elif false:
-        ## Future
-        proc ultimate_test(x: int = 8): string = tmpl html"""
-            <p>Test $$x</p>
-            $x
-
-            <p>Test $$(x * 5)</p>
-            $(x * 5)
-
-            <p>Test if/elif/else</p>
-            $if x == 8: {{
-                <div>x is 8!</div>
-            }}
-            $elif x == 7: {{
-                <div>x is 7!</div>
-            }}
-            $else: {{
-                <div>x is neither!</div>
-            }}
-
-            <p>Test for</p>
-            <ul>
-            $for x in [0,1,2]: {{
-                <li>$x</li>
-            }}
-            </ul>
-
-            <p>Test case</p>
-            $case x
-            of 5: {{
-                <div>x == 5</div>
-            }}
-            of 6: {{
-                <div>x == 6</div>
-            }}
-            else: {{
-                <div>x == ?</div>
-            }}
-        """
-
-        proc test_case: string =
-            const i = 5
-            tmpl html"""
-                ${{case i
-                    $of 5: ding!
-                    $else: nothing
-                }}
-            """
-
-    else:
-        ## In Progress
-        proc test_statements(nums: openarray[int] = []): string =
-
-            tmpl html"""
-                ${{if 5 * 5 == 25:
-                    hello $("do things?")
-                }}
-                <ul>
-                ${{for i in nums:
-                    <li>$(i * 2)</li>
-                }}</ul>
-                """
-
-
-        # Run template procedures
-        echo test_statements([0, 2, 4, 6])
+    include tests
