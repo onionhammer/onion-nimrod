@@ -20,32 +20,45 @@ macro make(names: openarray[expr]): stmt {.immediate.} =
         )
 
 
-proc reindent*(value: string): string {.noinit.} =
-    #Detect indentation
-    #TODO Improve detection; take the MIN indent rather than FIRST indent
-    let length = value.len
-    let indent = skipWhitespace(value)
-
-    if indent == 0:
-        return value
-
-    #Remove indent amount from `value`
-    var newValue = newString(0)
-    var index    = indent
-
-    while index < length:
+iterator lines(value: string): string =
+    var i = 0
+    while i < value.len:
         var line: string
-        var lineLen = value.parseUntil(line, 13.char, index)
+        inc(i, value.parseUntil(line, 0x0A.char, i) + 1)
+        yield line
 
-        #Trim
-        if indent + index + lineLen > length:
-            newValue.add(line)
-        else:
-            newValue.add(line & "\n")
 
-        index = index + lineLen + 2 + indent
+proc reindent*(value: string, preset_indent = 0): string =
+    var indent = -1
 
-    return newValue
+    # Detect indentation!
+    for ln in lines(value):
+        var read = ln.skipWhitespace()
+
+        # If the line is empty, ignore it for indentation
+        if read == ln.len: continue
+
+        indent = if indent < 0: read
+                 else: min(indent, read)
+
+    # Create a precursor indent as-needed
+    var precursor = newString(0)
+    for i in 1 .. preset_indent:
+        precursor.add(' ')
+
+    # Re-indent
+    result = newString(0)
+
+    for ln in lines(value):
+        var value = ln.substr(indent)
+
+        result.add(precursor)
+
+        if value.len > 0:
+            result.add(value)
+            result.add(0x0A.char)
+
+    return result
 
 
 #Define tags

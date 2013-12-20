@@ -43,49 +43,50 @@ when false:
             25
         """
         echo actual()
+        echo expected
         assert actual() == expected
 
-block: #forIn
-    proc actual: string = tmpl html"""
-        <p>Test for</p>
-        <ul>
-            $for y in [0, 1, 2] {
+    block: #forIn
+        proc actual: string = tmpl html"""
+            <p>Test for</p>
+            <ul>
+            $for y in 0..2 {
                 <li>$y</li>
             }
-        </ul>
+            </ul>
+        """
+        const expected = html"""
+            <p>Test for</p>
+            <ul>
+                <li>0</li>
+                <li>1</li>
+                <li>2</li>
+            </ul>
+        """
+        echo actual()
+        assert actual() == expected
+
+block: #ifElifElse
+    proc actual: string = tmpl html"""
+        <p>Test if/elif/else</p>
+        $if x == 8 {
+            <div>x is 8!</div>
+        }
+        $elif x == 7 {
+            <div>x is 7!</div>
+        }
+        $else {
+            <div>x is neither!</div>
+        }
     """
     const expected = html"""
-        <p>Test for</p>
-        <ul>
-            <li>0</li>
-            <li>1</li>
-            <li>2</li>
-        </ul>
+        <p>Test if/elif/else</p>
+        <div>x is neither!</div>
     """
     echo actual()
     assert actual() == expected
 
 when false:
-
-    block: #ifElifElse
-        proc actual: string = tmpl html"""
-            <p>Test if/elif/else</p>
-            $if x == 8 {
-                <div>x is 8!</div>
-            }
-            $elif x == 7 {
-                <div>x is 7!</div>
-            }
-            $else {
-                <div>x is neither!</div>
-            }
-        """
-        const expected = html"""
-            <p>Test if/elif/else</p>
-            <div>x is neither!</div>
-        """
-        echo actual()
-        assert actual() == expected
 
     block: #caseOfElse
         proc actual: string = tmpl html"""

@@ -47,6 +47,8 @@ proc parse_until_symbol*(node: PNimrodNode, value: string, index: var int): bool
 # Procedure Definitions
 proc parse_template*(node: PNimrodNode, value: string) {.compiletime.}
 
+
+
 proc substring(value: string, index: int, length = 0): string =
     return if length == 0: value.substr(index)
            else:           value.substr(index, index + length-1)
@@ -94,20 +96,21 @@ proc parse_simple_statement(node: PNimrodNode, value: string, index: var int) {.
     var splitValue: string
     var read       = value.parseUntil(splitValue, '{', index)
     var expression = parseExpr(splitValue & ":nil")
-    inc(index, read+1)
+    inc(index, read + 1)
 
     # Parse through EOL
     inc(index, value.parse_thru_eol(index))
 
-    #Parse through { .. }
-    read = value.parse_to_close(index, open='{', close='}', 1)
+    # Parse through { .. }
+    read = value.parse_to_close(index, open='{', close='}', opened=1)
     var sub_expression = value.substring(index, read)
-    inc(index, read+1)
+    inc(index, read + 1)
 
+    # Add parsed sub-expression into body
     var stmtIndex = macros.high(expression)
     var body      = newStmtList()
 
-    parse_template(body, reindent(sub_expression))
+    parse_template(body, sub_expression)
     expression[stmtIndex] = body
 
     node.add(expression)
@@ -138,7 +141,7 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
 
         of '(':
             # Check for open `(`, which means parse as simple single-line expression.
-            read = value.parse_to_close(index, opened = 1)
+            read = value.parse_to_close(index, opened=1) - 2
             node.add newCall("add", ident("result"), parseExpr("$" & value.substring(index, read)))
             inc(index, read)
 
@@ -159,7 +162,7 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
                 echo "TODO - Parse complex statement"
                 inc(index, read)
 
-            else:
+            elif identifier.len > 0:
                 ## Treat as simple variable
                 node.add newCall("add", ident("result"), newCall("$", ident(identifier)))
                 inc(index, read)
