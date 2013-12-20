@@ -60,6 +60,19 @@ proc parse_thru_eol(value: string, index: int): int =
         return read + 1
 
 
+proc trim_eol(value: var string) =
+    ## Removes everything after the last line if it contains nothing but whitespace
+    var ending = value.len - 1
+    for i in countdown(ending, 0):
+        # If \n, trim and return
+        if value[i] == 0x0A.char:
+            value = value.substr(0, i)
+            break
+
+        # Skip change
+        if not (value[i] in [' ', '\t']): break
+
+
 proc parse_through_string(value: string, i: var int, strType = '"') =
     ## Parses until ending " or ' is reached.
     inc(i)
@@ -121,7 +134,7 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
     ## removing one of the $'s from the resulting output
     var splitValue: string
     var read = value.parseUntil(splitValue, '$', index)
-    node.add newCall("add", ident("result"), newStrLitNode(splitValue))
+    var insertionPoint = node.len
 
     inc(index, read + 1)
     if index < value.len:
@@ -140,6 +153,8 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
 
         of '{':
             # Check for open `{`, which means open statement list
+            trim_eol(splitValue)
+
             read = value.parse_to_close(index, open='{', close='}')
             node.add parseStmt(
                 value.substring(index + 1, read - 1)
@@ -168,7 +183,10 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
                 node.add newCall("add", ident("result"), newCall("$", ident(identifier)))
                 inc(index, read)
 
-        return true
+        result = true
+
+    # Insert
+    node.insert insertionPoint, newCall("add", ident("result"), newStrLitNode(splitValue))
 
 
 proc parse_template*(node: PNimrodNode, value: string) =
