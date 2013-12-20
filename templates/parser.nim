@@ -27,6 +27,7 @@ const identChars = {'a'..'z', 'A'..'Z', '0'..'9', '_'}
 
 # Procedure Declarations
 proc parse_until_symbol*(node: PNimrodNode, value: string, index: var int): bool {.compiletime.}
+proc parse_template*(node: PNimrodNode, value: string) {.compiletime.}
 
 # proc parse_through_string*(quote = '"') {.compiletime.}
 #     ## Parses until ending " or ' is reached.
@@ -45,10 +46,6 @@ proc parse_until_symbol*(node: PNimrodNode, value: string, index: var int): bool
 
 
 # Procedure Definitions
-proc parse_template*(node: PNimrodNode, value: string) {.compiletime.}
-
-
-
 proc substring(value: string, index: int, length = 0): string =
     return if length == 0: value.substr(index)
            else:           value.substr(index, index + length-1)
@@ -103,14 +100,13 @@ proc parse_simple_statement(node: PNimrodNode, value: string, index: var int) {.
 
     # Parse through { .. }
     read = value.parse_to_close(index, open='{', close='}', opened=1)
-    var sub_expression = value.substring(index, read)
-    inc(index, read + 1)
 
     # Add parsed sub-expression into body
-    var stmtIndex = macros.high(expression)
-    var body      = newStmtList()
+    var body = newStmtList()
+    parse_template(body, value.substring(index, read))
+    inc(index, read + 1)
 
-    parse_template(body, sub_expression)
+    var stmtIndex = macros.high(expression)
     expression[stmtIndex] = body
 
     node.add(expression)
@@ -125,13 +121,10 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
     ## removing one of the $'s from the resulting output
     var splitValue: string
     var read = value.parseUntil(splitValue, '$', index)
-
-    # Append string up until the `$` symbol
     node.add newCall("add", ident("result"), newStrLitNode(splitValue))
-    inc(index, read)
 
+    inc(index, read + 1)
     if index < value.len:
-        inc(index)  # We know value[index] == '$'
 
         case value[index]
         of '$':
@@ -147,6 +140,14 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
 
         of '{':
             # Check for open `{`, which means open statement list
+            read = value.parse_to_close(index, open='{', close='}')
+            node.add parseStmt(
+                value.substring(index + 1, read - 1)
+            )
+            inc(index, read + 1)
+
+            #Parse thru EOL
+            inc(index, value.parse_thru_eol(index))
 
         else:
             # Otherwise parse while valid `identChars` and make expression w/ $
@@ -187,8 +188,6 @@ macro tmpl(body: expr): stmt =
                 else: body[1]
 
     parse_template(result, reindent($toStrLit(value)))
-
-    # echo treerepr(result)
 
 
 # Run tests

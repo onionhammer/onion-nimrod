@@ -10,7 +10,7 @@ static:
 
 
 # Various parsing tests
-when false:
+when true:
     block: #no_substitution
         proc actual: string = tmpl html"""
             <p>Test!</p>
@@ -43,7 +43,6 @@ when false:
             25
         """
         echo actual()
-        echo expected
         assert actual() == expected
 
     block: #forIn
@@ -66,25 +65,51 @@ when false:
         echo actual()
         assert actual() == expected
 
-block: #ifElifElse
+block: #while
     proc actual: string = tmpl html"""
-        <p>Test if/elif/else</p>
-        $if x == 8 {
-            <div>x is 8!</div>
+        <p>Test while/stmt</p>
+        <ul>
+        ${ var y = 0 }
+        $while y < 4 {
+            <li>$y</li>
+        ${  inc(y) }
         }
-        $elif x == 7 {
-            <div>x is 7!</div>
-        }
-        $else {
-            <div>x is neither!</div>
-        }
+        </ul>
     """
     const expected = html"""
-        <p>Test if/elif/else</p>
-        <div>x is neither!</div>
+        <p>Test while/stmt</p>
+        <ul>
+            <li>0</li>
+            <li>1</li>
+            <li>2</li>
+            <li>3</li>
+        </ul>
     """
     echo actual()
     assert actual() == expected
+
+
+when false:
+    block: #ifElifElse
+        proc actual: string = tmpl html"""
+            <p>Test if/elif/else</p>
+            $if x == 8 {
+                <div>x is 8!</div>
+            }
+            $elif x == 7 {
+                <div>x is 7!</div>
+            }
+            $else {
+                <div>x is neither!</div>
+            }
+        """
+        const expected = html"""
+            <p>Test if/elif/else</p>
+            <div>x is neither!</div>
+        """
+        echo actual()
+        assert actual() == expected
+
 
 when false:
 
