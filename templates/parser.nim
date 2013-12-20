@@ -104,21 +104,31 @@ proc parse_stmt_list*(value: string, index: var int): PNimrodNode {.compiletime.
 iterator parse_compound_statements(value, identifier: string, index: int): string =
 
     template get_next_ident(expected): stmt =
-        var next: string
         var nextIdent: string
-        var read = value.parseUntil(next, '{', i)
-        discard next.parseWhile(nextIdent, {'$'} + identChars, 0)
+        discard value.parseWhile(nextIdent, {'$'} + identChars, i)
 
-        if nextIdent in expected:
+        var next: string
+        var read: int
+
+        if nextIdent == "case":
+            # We have to handle case a bit differently
+            read = value.parseUntil(next, '$', i)
             inc(i, read)
-            # Parse until closing }, then skip whitespace afterwards
-            read = value.parse_to_close(i, open='{', close='}')
-            inc(i, read + 1)
-            inc(i, value.skipWhitespace(i))
+            yield next
 
-            yield next & ": nil\n"
+        else:
+            read = value.parseUntil(next, '{', i)
 
-        else: break
+            if nextIdent in expected:
+                inc(i, read)
+                # Parse until closing }, then skip whitespace afterwards
+                read = value.parse_to_close(i, open='{', close='}')
+                inc(i, read + 1)
+                inc(i, value.skipWhitespace(i))
+
+                yield next & ": nil\n"
+
+            else: break
 
 
     var i = index
@@ -149,6 +159,11 @@ proc parse_complex_stmt(value, identifier: string, index: var int): PNimrodNode 
     result = parseExpr(stmtString)
 
     var resultIndex = 0
+
+    # Fast forward a bit if this is a case statement
+    if identifier == "case":
+        inc(resultIndex)
+
     while resultIndex < numStatements:
 
         # Parse until an open brace `{`
