@@ -302,6 +302,7 @@ proc open*(address = "", port = TPort(8080), isAsync = true): TWebSocketServer =
 
   if isAsync:
     ws.asyncServer = asyncSocket()
+    ws.asyncServer.setSockOpt(OptReuseAddr, True)
     bindAddr(ws.asyncServer, port, address)
     listen(ws.asyncServer)
 
@@ -310,6 +311,7 @@ proc open*(address = "", port = TPort(8080), isAsync = true): TWebSocketServer =
 
   else:
     ws.server = socket()
+    ws.server.setSockOpt(OptReuseAddr, True)
     if ws.server == InvalidSocket:
       websocketError("could not open websocket")
 
