@@ -147,7 +147,30 @@ when true:
         echo actual()
         assert actual() == expected
 
-when false:#block: #embeddingTest
+
+block: #caseOfElse
+    proc actual: string = tmpl html"""
+        <p>Test case</p>
+        $if true {
+        <div>
+            $case x
+            $of 5 {
+                <div>x == 5</div>
+                <div>next line</div>
+            }
+            $of 6 {
+                <div>x == 6</div>
+            }
+            $else {
+                <div>x == 5</div>
+            }
+        </div>
+        }
+    """
+    echo actual()
+
+
+when true:#block: #embeddingTest
     proc no_substitution: string = tmpl html"""
         <h1>Template test!</h1>
     """

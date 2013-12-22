@@ -34,15 +34,21 @@ proc parse_thru_eol(value: string, index: int): int {.compiletime.} =
         return read + 1
 
 
-proc deindent(value: string, index, to: int): int {.compiletime.} =
-    ## Reduces indentation of current line by `to`
-    nil
+proc deindent(value: var string) {.compiletime.} =
+    ## Trims any whitespace at end after \n at end
+    var toTrim = 0
+    for i in countdown(value.len-1, 0):
+        # If \n, return
+        if value[i] == 0x0A.char: break
+        elif value[i] in [' ', '\t']: inc(toTrim)
+
+    if toTrim > 0:
+        value = value.substring(0, value.len - toTrim)
 
 
 proc trim_eol(value: var string) {.compiletime.} =
     ## Removes everything after the last line if it contains nothing but whitespace
-    var ending = value.len - 1
-    for i in countdown(ending, 0):
+    for i in countdown(value.len - 1, 0):
         # If \n, trim and return
         if value[i] == 0x0A.char:
             value = value.substr(0, i)
@@ -175,8 +181,9 @@ proc parse_complex_stmt(value, identifier: string, index: var int): PNimrodNode 
         read = value.parse_to_close(index, open='{', close='}', opened=1)
 
         # Add parsed sub-expression into body
-        var body = newStmtList()
+        var body       = newStmtList()
         var stmtString = value.substring(index, read)
+        deindent(stmtString)
         parse_template(body, stmtString)
         inc(index, read + 1)
 
@@ -194,8 +201,8 @@ proc parse_simple_statement(value: string, index: var int): PNimrodNode {.compil
 
     # Parse until an open brace `{`
     var splitValue: string
-    var read       = value.parseUntil(splitValue, '{', index)
-    result         = parseExpr(splitValue & ":nil")
+    var read = value.parseUntil(splitValue, '{', index)
+    result   = parseExpr(splitValue & ":nil")
     inc(index, read + 1)
 
     # Parse through EOL
@@ -205,8 +212,10 @@ proc parse_simple_statement(value: string, index: var int): PNimrodNode {.compil
     read = value.parse_to_close(index, open='{', close='}', opened=1)
 
     # Add parsed sub-expression into body
-    var body = newStmtList()
-    parse_template(body, value.substring(index, read))
+    var body       = newStmtList()
+    var stmtString = value.substring(index, read)
+    deindent(stmtString)
+    parse_template(body, stmtString)
     inc(index, read + 1)
 
     # Insert body into result
