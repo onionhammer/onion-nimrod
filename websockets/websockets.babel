@@ -6,4 +6,4 @@ description = "Websocket server library"
 license = "MIT"
 
 [Deps]
-Requires: "nimrod > 0.9.3, sha1 >= 1.0"
+Requires: "nimrod >= 0.9.3, sha1 >= 1.0"
