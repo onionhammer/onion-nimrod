@@ -4,7 +4,7 @@
 
 
 # Imports
-import tables, parseutils, macros
+import tables, parseutils, macros, strutils
 import annotate
 export annotate
 
@@ -18,9 +18,10 @@ proc parse_template(node: PNimrodNode, value: string) {.compiletime.}
 
 
 # Procedure Definitions
-proc substring(value: string, index: int, length = 0): string {.compiletime.} =
-    return if length == 0: value.substr(index)
-           else:           value.substr(index, index + length-1)
+proc substring(value: string, index: int, length = -1): string {.compiletime.} =
+    return if length < 0:    value.substr(index)
+           elif length == 0: ""
+           else:             value.substr(index, index + length-1)
 
 
 proc parse_thru_eol(value: string, index: int): int {.compiletime.} =
@@ -30,6 +31,11 @@ proc parse_thru_eol(value: string, index: int): int {.compiletime.} =
     var read = value.parseUntil(remainder, {0x0A.char}, index)
     if remainder.skipWhitespace() == read:
         return read + 1
+
+
+proc deindent(value: string, index, to: int): int {.compiletime.} =
+    ## Reduces indentation of current line by `to`
+    nil
 
 
 proc trim_eol(value: var string) {.compiletime.} =
@@ -75,14 +81,15 @@ proc parse_to_close(value: string, index: int, open='(', close=')', opened=0): i
         if open_braces == 0: break
         else: inc(result)
 
-
-proc parse_stmt_list(value: string, index: var int): PNimrodNode {.compiletime.} =
+iterator parse_stmt_list(value: string, index: var int): string =
     ## Parses unguided ${..} block
-    var read = value.parse_to_close(index, open='{', close='}')
+    var read        = value.parse_to_close(index, open='{', close='}')
+    var expressions = value.substring(index + 1, read - 1).split({ ';', 0x0A.char })
 
-    result = parseStmt(
-        value.substring(index + 1, read - 1)
-    )
+    for expression in expressions:
+        let value = expression.strip
+        if value.len > 0:
+            yield value
 
     #Increment index & parse thru EOL
     inc(index, read + 1)
@@ -105,7 +112,7 @@ iterator parse_compound_statements(value, identifier: string, index: int): strin
             # We have to handle case a bit differently
             read = value.parseUntil(next, '$', i)
             inc(i, read)
-            yield next
+            yield next.strip(leading=false) & "\n"
 
         else:
             read = value.parseUntil(next, '{', i)
@@ -116,7 +123,6 @@ iterator parse_compound_statements(value, identifier: string, index: int): strin
                 read = value.parse_to_close(i, open='{', close='}')
                 inc(i, read + 1)
                 inc(i, value.skipWhitespace(i))
-
                 yield next & ": nil\n"
 
             else: break
@@ -237,7 +243,8 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
         of '{':
             # Check for open `{`, which means open statement list
             trim_eol(splitValue)
-            node.add value.parse_stmt_list(index)
+            for s in value.parse_stmt_list(index):
+                node.add parseExpr(s)
 
         else:
             # Otherwise parse while valid `identChars` and make expression w/ $
