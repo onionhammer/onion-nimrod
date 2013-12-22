@@ -19,6 +19,7 @@ proc parse_template(node: PNimrodNode, value: string) {.compiletime.}
 
 # Procedure Definitions
 proc substring(value: string, index: int, length = -1): string {.compiletime.} =
+    ## Returns a string at most `length` characters long, starting at `index`.
     return if length < 0:    value.substr(index)
            elif length == 0: ""
            else:             value.substr(index, index + length-1)
@@ -149,7 +150,7 @@ proc parse_complex_stmt(value, identifier: string, index: var int): PNimrodNode 
     var numStatements = 0
     for statement in value.parse_compound_statements(identifier, index):
         if statement[0] == '$': stmtString.add(statement.substr(1))
-        else: stmtString.add(statement)
+        else:                   stmtString.add(statement)
         inc(numStatements)
 
     # Parse stmt string
@@ -231,7 +232,7 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
         of '$':
             # Check for duplicate `$`, meaning this is an escaped $
             node.add newCall("add", ident("result"), newStrLitNode("$"))
-            inc(index, 1)
+            inc(index)
 
         of '(':
             # Check for open `(`, which means parse as simple single-line expression.
