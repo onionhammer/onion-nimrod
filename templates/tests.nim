@@ -110,42 +110,42 @@ when true:
         echo actual()
         assert actual() == expected
 
-block: #multiLineStatements
-    proc actual: string = tmpl html"""
-        <p>Test multiline statements</p>
-        ${
-            var x = 5
-            var y = 7
-        }
-        <span>$x</span><span>$y</span>
-    """
-    const expected = html"""
-        <p>Test multiline statements</p>
-        <span>5</span><span>7</span>
-    """
-    echo actual()
-    assert actual() == expected
+    block: #multiLineStatements
+        proc actual: string = tmpl html"""
+            <p>Test multiline statements</p>
+            ${
+                var x = 5
+                var y = 7
+            }
+            <span>$x</span><span>$y</span>
+        """
+        const expected = html"""
+            <p>Test multiline statements</p>
+            <span>5</span><span>7</span>
+        """
+        echo actual()
+        assert actual() == expected
 
-block: #caseOfElse
-    proc actual: string = tmpl html"""
-        <p>Test case</p>
-        $case x
-        $of 5 {
-            <div>x == 5</div>
-        }
-        $of 6 {
-            <div>x == 6</div>
-        }
-        $else {
-            <div>x == 5</div>
-        }
-    """
-    const expected = html"""
-        <p>Test case</p>
-            <div>x == 5</div>
-    """
-    echo actual()
-    assert actual() == expected
+    block: #caseOfElse
+        proc actual: string = tmpl html"""
+            <p>Test case</p>
+            $case x
+            $of 5 {
+                <div>x == 5</div>
+            }
+            $of 6 {
+                <div>x == 6</div>
+            }
+            $else {
+                <div>x == 5</div>
+            }
+        """
+        const expected = html"""
+            <p>Test case</p>
+                <div>x == 5</div>
+        """
+        echo actual()
+        assert actual() == expected
 
 when false:#block: #embeddingTest
     proc no_substitution: string = tmpl html"""
