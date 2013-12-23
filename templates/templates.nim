@@ -34,8 +34,8 @@ proc parse_thru_eol(value: string, index: int): int {.compiletime.} =
         return read + 1
 
 
-proc deindent(value: var string) {.compiletime.} =
-    ## Trims any whitespace at end after \n at end
+proc trim_after_eol(value: var string) {.compiletime.} =
+    ## Trims any whitespace at end after \n
     var toTrim = 0
     for i in countdown(value.len-1, 0):
         # If \n, return
@@ -61,6 +61,19 @@ proc trim_eol(value: var string) {.compiletime.} =
 
         # Skip change
         if not (value[i] in [' ', '\t']): break
+
+
+proc detect_indent(value: string, index: int): int {.compiletime.} =
+    ## Detects how indented the line at `index` is.
+    # Seek to the beginning of the line.
+    var lastChar = index
+    for i in countdown(index, 0):
+        if value[i] == 0x0A.char:
+            # if \n, return the indentation level
+            return lastChar - i
+        elif not (value[i] in [' ', '\t']):
+            # if non-whitespace char, decrement lastChar
+            dec(lastChar)
 
 
 proc parse_thru_string(value: string, i: var int, strType = '"') {.compiletime.} =
@@ -171,6 +184,9 @@ proc parse_complex_stmt(value, identifier: string, index: var int): PNimrodNode 
 
     while resultIndex < numStatements:
 
+        # Detect indentation
+        let indent = detect_indent(value, index)
+
         # Parse until an open brace `{`
         var read = value.skipUntil('{', index)
         inc(index, read + 1)
@@ -184,7 +200,8 @@ proc parse_complex_stmt(value, identifier: string, index: var int): PNimrodNode 
         # Add parsed sub-expression into body
         var body       = newStmtList()
         var stmtString = value.substring(index, read)
-        deindent(stmtString)
+        trim_after_eol(stmtString)
+        stmtString = reindent(stmtString, indent)
         parse_template(body, stmtString)
         inc(index, read + 1)
 
@@ -199,6 +216,9 @@ proc parse_complex_stmt(value, identifier: string, index: var int): PNimrodNode 
 
 proc parse_simple_statement(value: string, index: var int): PNimrodNode {.compiletime.} =
     ## Parses for/while
+
+    # Detect indentation
+    let indent = detect_indent(value, index)
 
     # Parse until an open brace `{`
     var splitValue: string
@@ -215,7 +235,8 @@ proc parse_simple_statement(value: string, index: var int): PNimrodNode {.compil
     # Add parsed sub-expression into body
     var body       = newStmtList()
     var stmtString = value.substring(index, read)
-    deindent(stmtString)
+    trim_after_eol(stmtString)
+    stmtString = reindent(stmtString, indent)
     parse_template(body, stmtString)
     inc(index, read + 1)
 

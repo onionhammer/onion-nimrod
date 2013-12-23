@@ -51,9 +51,9 @@ when true:
         proc actual: string = tmpl html"""
             <p>Test for</p>
             <ul>
-            $for y in 0..2 {
-                <li>$y</li>
-            }
+                $for y in 0..2 {
+                    <li>$y</li>
+                }
             </ul>
         """
         const expected = html"""
@@ -71,11 +71,11 @@ when true:
         proc actual: string = tmpl html"""
             <p>Test while/stmt</p>
             <ul>
-            ${ var y = 0 }
-            $while y < 4 {
-                <li>$y</li>
-                ${ inc(y) }
-            }
+                ${ var y = 0 }
+                $while y < 4 {
+                    <li>$y</li>
+                    ${ inc(y) }
+                }
             </ul>
         """
         const expected = html"""
@@ -105,7 +105,7 @@ when true:
         """
         const expected = html"""
             <p>Test if/elif/else</p>
-                <div>x is neither!</div>
+            <div>x is neither!</div>
         """
         echo actual()
         assert actual() == expected
@@ -136,41 +136,18 @@ when true:
             $of 6 {
                 <div>x == 6</div>
             }
-            $else {
-                <div>x == 5</div>
-            }
+            $else {}
         """
         const expected = html"""
             <p>Test case</p>
-                <div>x == 5</div>
+            <div>x == 5</div>
         """
         echo actual()
         assert actual() == expected
 
 
-    block: #caseOfElse
-        proc actual: string = tmpl html"""
-            <p>Test case</p>
-            $if true {
-            <div>
-                $case x
-                $of 5 {
-                    <div>x == 5</div>
-                    <div>next line</div>
-                }
-                $of 6 {
-                    <div>x == 6</div>
-                }
-                $else {
-                    <div>x == 5</div>
-                }
-            </div>
-            }
-        """
-        echo actual()
 
-
-when true:#block: #embeddingTest
+when true: #embeddingTest
     proc no_substitution: string = tmpl html"""
         <h1>Template test!</h1>
     """
@@ -194,9 +171,9 @@ when true:#block: #embeddingTest
             $(test_expression(nums))
             $if true {
                 <ul>
-                $for i in nums {
-                    <li>$(i * 2)</li>
-                }
+                    $for i in nums {
+                        <li>$(i * 2)</li>
+                    }
                 </ul>
             }
         """
@@ -206,11 +183,11 @@ when true:#block: #embeddingTest
         <h1>Template test!</h1>
         <div id="greeting">hello Billy!</div>
         <div id="age">Age: 2!!</div>
-            <ul>
-                <li>0</li>
-                <li>2</li>
-                <li>4</li>
-            </ul>
+        <ul>
+            <li>0</li>
+            <li>2</li>
+            <li>4</li>
+        </ul>
     """
     echo actual
     assert actual == expected
