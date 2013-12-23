@@ -148,26 +148,26 @@ when true:
         assert actual() == expected
 
 
-block: #caseOfElse
-    proc actual: string = tmpl html"""
-        <p>Test case</p>
-        $if true {
-        <div>
-            $case x
-            $of 5 {
-                <div>x == 5</div>
-                <div>next line</div>
+    block: #caseOfElse
+        proc actual: string = tmpl html"""
+            <p>Test case</p>
+            $if true {
+            <div>
+                $case x
+                $of 5 {
+                    <div>x == 5</div>
+                    <div>next line</div>
+                }
+                $of 6 {
+                    <div>x == 6</div>
+                }
+                $else {
+                    <div>x == 5</div>
+                }
+            </div>
             }
-            $of 6 {
-                <div>x == 6</div>
-            }
-            $else {
-                <div>x == 5</div>
-            }
-        </div>
-        }
-    """
-    echo actual()
+        """
+        echo actual()
 
 
 when true:#block: #embeddingTest
