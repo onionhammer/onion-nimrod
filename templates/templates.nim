@@ -249,7 +249,7 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
             trim_eol(splitValue)
             read = value.parse_to_close(index) + 1
             node.add newCall("add", ident("result"),
-                newCall("strip", parseExpr("$" & value.substring(index, read)))
+                newCall(bindSym"strip", parseExpr("$" & value.substring(index, read)))
             )
             inc(index, read)
 
