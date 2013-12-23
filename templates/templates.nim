@@ -39,8 +39,8 @@ proc deindent(value: var string) {.compiletime.} =
     var toTrim = 0
     for i in countdown(value.len-1, 0):
         # If \n, return
-        if value[i] == 0x0A.char: break
-        elif value[i] in [' ', '\t']: inc(toTrim)
+        if value[i] in [' ', '\t']: inc(toTrim)
+        else: break
 
     if toTrim > 0:
         value = value.substring(0, value.len - toTrim)
@@ -87,6 +87,7 @@ proc parse_to_close(value: string, index: int, open='(', close=')', opened=0): i
 
         if open_braces == 0: break
         else: inc(result)
+
 
 iterator parse_stmt_list(value: string, index: var int): string =
     ## Parses unguided ${..} block
@@ -247,7 +248,9 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
             # Check for open `(`, which means parse as simple single-line expression.
             trim_eol(splitValue)
             read = value.parse_to_close(index) + 1
-            node.add newCall("add", ident("result"), parseExpr("$" & value.substring(index, read)))
+            node.add newCall("add", ident("result"),
+                newCall("strip", parseExpr("$" & value.substring(index, read)))
+            )
             inc(index, read)
 
         of '{':
@@ -263,6 +266,7 @@ proc parse_until_symbol(node: PNimrodNode, value: string, index: var int): bool 
 
             if identifier in ["for", "while"]:
                 ## for/while means open simple statement
+                trim_eol(splitValue)
                 node.add value.parse_simple_statement(index)
 
             elif identifier in ["if", "when", "case", "try"]:
