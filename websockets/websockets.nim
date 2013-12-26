@@ -204,13 +204,14 @@ proc close*(ws: var TWebSocketServer) =
     for client in ws.clients:
       client.asyncSocket.close()
     ws.asyncServer.close()
+    ws.asyncServer = nil
 
   else:
     for client in ws.clients:
       client.socket.close()
     ws.server.close()
+    ws.server  = nil
 
-  ws.server  = nil
   ws.clients = nil
   ws.buffer  = nil
 
