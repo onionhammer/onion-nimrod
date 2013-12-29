@@ -320,10 +320,19 @@ macro tmpl*(body: expr): stmt =
 
     result.add parseExpr("if result == nil: result = \"\"")
 
-    var value = if body.kind in nnkStrLit..nnkTripleStrLit: body
-                else: body[1]
+    var value = if body.kind in nnkStrLit..nnkTripleStrLit: body.strVal
+                else: body[1].strVal
 
-    parse_template(result, reindent($toStrLit(value)))
+    parse_template(result, reindent(value))
+
+
+macro tmpl_noinit*(body: expr): stmt =
+    result = newStmtList()
+
+    var value = if body.kind in nnkStrLit..nnkTripleStrLit: body.strVal
+                else: body[1].strVal
+
+    parse_template(result, reindent(value))
 
 
 # Run tests
