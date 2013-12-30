@@ -12,25 +12,22 @@ type
 
 
 # Procedures
-proc offset[A](some: ptr A; b: int): ptr A =
-  result = cast[ptr A](cast[int](some) + (b * sizeof(A)))
+proc inc[A](some: var ptr A, b = 1) {.nostackframe, inline.} =
+    some = cast[ptr A](cast[int](some) + (b * sizeof(A)))
 
 
-proc inc[A](some: var ptr A, b = 1) =
-  some = some.offset(b)
+template add_internal(builder: PStringBuilder, content = ""): stmt {.immediate.} =
+    var len = content.len
 
-
-template add_internal(builder: PStringBuilder, content = ""): stmt =
-    var node = TNode(
+    builder.head.add TNode(
         content: content.cstring,
-        len: content.len
+        len: len
     )
 
-    builder.head.add(node)
-    inc(builder.len, node.len)
+    inc(builder.len, len)
 
 
-proc add*(builder: PStringBuilder, content = "") =
+proc add*(builder: PStringBuilder, content = "") {.nostackframe, inline.} =
     add_internal(builder, content)
 
 
@@ -45,22 +42,21 @@ proc `$`*(builder: PStringBuilder): string =
     var address = addr result[0]
 
     for next in builder.head:
-        let len = next.len
-
         # Copy source to destination
         copymem(
             address,
             next.content,
-            len
+            next.len
         )
 
-        inc(address, len)
+        inc(address, next.len)
+
 
 # Tests
 when isMainModule:
 
     # Imports
-    import ropes, strutils, times
+    import strutils, times
 
     # test stringbulder
     var result = stringbuilder("");
@@ -69,17 +65,12 @@ when isMainModule:
     result.add("line 3")
 
     echo($result)
-    # assert($result == "line 1line 2line 3")
+    assert($result == "line 1line 2line 3")
 
     # Mock Data
     var data = newSeq[string]()
     for i in 0.. 10000:
-        data.add("this is a string containing some information, and the strings get even longer! " &
-                 "this is a string containing some information, and the strings get even longer" &
-                 "this is a string containing some information, and the strings get even longer" &
-                 "this is a string containing some information, and the strings get even longer" &
-                 "this is a string containing some information, and the strings get even longer" &
-                 "How can I keep track of how long these amazingly long strings are!:" & $i & "\n")
+        data.add("How can I keep track of how long these amazingly long strings are!:" & $i & "\n")
 
     # Benchmark setup
     template bench(name, operation: stmt): stmt =
@@ -95,12 +86,6 @@ when isMainModule:
             var result = ""
             for line in data:
                 result.add(line)
-
-        # bench("Ropes Concatenation"):
-        #     var result = rope("")
-        #     for line in data:
-        #         result.add(line)
-        #     discard $result
 
         bench("StringBuilder Concatenation"):
             var result = stringbuilder("");
