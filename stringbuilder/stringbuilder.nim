@@ -25,11 +25,11 @@ template add_internal(builder: PStringBuilder, content = ""): stmt {.immediate.}
     inc(builder.len, content.len)
 
 
-proc add*(builder: PStringBuilder, content = "") {.inline.} =
+proc add*(builder: PStringBuilder, content = "") =
     add_internal(builder, content)
 
 
-proc `&=`*(builder: PStringBuilder, content = "") {.inline.} =
+proc `&=`*(builder: PStringBuilder, content = "") =
     add_internal(builder, content)
 
 
