@@ -6,7 +6,7 @@ type
 
     TStringBuilder* = object of TObject
         head: seq[TNode]
-        len: int
+        len*: int
 
     PStringBuilder* = ref TStringBuilder
 
@@ -26,6 +26,10 @@ template add_internal(builder: PStringBuilder, content = ""): stmt {.immediate.}
 
 
 proc add*(builder: PStringBuilder, content = "") {.inline.} =
+    add_internal(builder, content)
+
+
+proc `&=`*(builder: PStringBuilder, content = "") {.inline.} =
     add_internal(builder, content)
 
 
@@ -87,10 +91,10 @@ when isMainModule:
         bench("String Concatenation"):
             var result = ""
             for line in data:
-                result.add(line)
+                result &= line
 
         bench("StringBuilder Concatenation"):
             var result = stringbuilder("");
             for line in data:
-                result.add(line)
+                result &= line
             discard $result
