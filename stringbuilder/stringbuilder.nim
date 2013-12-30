@@ -12,7 +12,7 @@ type
 
 
 # Procedures
-proc inc[A](some: var ptr A, b = 1) {.nostackframe.} =
+proc inc[A](some: var ptr A, b = 1) {.nostackframe, inline.} =
     some = cast[ptr A](cast[int](some) + (b * sizeof(A)))
 
 
@@ -27,7 +27,7 @@ template add_internal(builder: PStringBuilder, content = ""): stmt {.immediate.}
     inc(builder.len, len)
 
 
-proc add*(builder: PStringBuilder, content = "") {.nostackframe.} =
+proc add*(builder: PStringBuilder, content = "") =
     add_internal(builder, content)
 
 
