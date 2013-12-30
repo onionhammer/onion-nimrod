@@ -326,7 +326,7 @@ macro tmpl*(body: expr): stmt =
     parse_template(result, reindent(value))
 
 
-macro tmpl_noinit*(body: expr): stmt =
+macro tmplu*(body: expr): stmt =
     result = newStmtList()
 
     var value = if body.kind in nnkStrLit..nnkTripleStrLit: body.strVal
