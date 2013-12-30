@@ -12,29 +12,27 @@ type
 
 
 # Procedures
-proc inc[A](some: var ptr A, b = 1) {.nostackframe, inline.} =
+proc inc[A](some: var ptr A, b = 1) {.inline.} =
     some = cast[ptr A](cast[int](some) + (b * sizeof(A)))
 
 
 template add_internal(builder: PStringBuilder, content = ""): stmt {.immediate.} =
-    var len = content.len
-
     builder.head.add TNode(
         content: content.cstring,
-        len: len
+        len: content.len
     )
 
-    inc(builder.len, len)
+    inc(builder.len, content.len)
 
 
-proc add*(builder: PStringBuilder, content = "") =
+proc add*(builder: PStringBuilder, content = "") {.inline.} =
     add_internal(builder, content)
 
 
 proc stringbuilder*(content = ""): PStringBuilder =
     new(result)
     result.head = newSeq[TNode]()
-    add(result, content)
+    add_internal(result, content)
 
 
 proc `$`*(builder: PStringBuilder): string =
@@ -59,7 +57,7 @@ when isMainModule:
     import strutils, times
 
     # test stringbulder
-    var result = stringbuilder("");
+    var result = stringbuilder();
     result.add("line 1")
     result.add("line 2")
     result.add("line 3")
@@ -70,7 +68,11 @@ when isMainModule:
     # Mock Data
     var data = newSeq[string]()
     for i in 0.. 10000:
-        data.add("How can I keep track of how long these amazingly long strings are!:" & $i & "\n")
+        data.add(
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" & $i & "\n")
 
     # Benchmark setup
     template bench(name, operation: stmt): stmt =
