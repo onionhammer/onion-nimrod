@@ -1,14 +1,12 @@
 # Types
 type
-    TNode* = object
+    TNode = object
         content: cstring
         len: int
 
-    TStringBuilder* = object of TObject
+    PStringBuilder* = ref object
         head: seq[TNode]
         len*: int
-
-    PStringBuilder* = ref TStringBuilder
 
 
 # Procedures
@@ -16,10 +14,10 @@ proc inc[A](some: var ptr A, b = 1) {.inline.} =
     some = cast[ptr A](cast[int](some) + (b * sizeof(A)))
 
 
-template add_internal(builder: PStringBuilder, content = ""): stmt {.immediate.} =
+template add_internal(builder: PStringBuilder, content: string): stmt {.immediate.} =
     builder.head.add TNode(
-        content: content.cstring,
-        len: content.len
+        content: content,
+        len:     content.len
     )
 
     inc(builder.len, content.len)
@@ -40,7 +38,7 @@ proc stringbuilder*(content = ""): PStringBuilder =
 
 
 proc `$`*(builder: PStringBuilder): string =
-    result = newString(builder.len)
+    result      = newString(builder.len)
     var address = addr result[0]
 
     for next in builder.head:
