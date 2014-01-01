@@ -315,7 +315,7 @@ proc parse_template(node: PNimrodNode, value: string) =
           parse_until_symbol(node, value, index): nil
 
 
-macro tmpl*(body: expr): stmt =
+macro tmpli*(body: expr): stmt =
     result = newStmtList()
 
     result.add parseExpr("if result == nil: result = \"\"")
@@ -326,7 +326,7 @@ macro tmpl*(body: expr): stmt =
     parse_template(result, reindent(value))
 
 
-macro tmplu*(body: expr): stmt =
+macro tmpl*(body: expr): stmt =
     result = newStmtList()
 
     var value = if body.kind in nnkStrLit..nnkTripleStrLit: body.strVal

@@ -14,7 +14,7 @@ static:
 when true:
 
     block: #no_substitution
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test!</p>
         """
         const expected = html"""
@@ -24,7 +24,7 @@ when true:
         assert actual() == expected
 
     block: #basic
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test $$x</p>
             $x
         """
@@ -36,7 +36,7 @@ when true:
         assert actual() == expected
 
     block: #expression
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test $$(x * 5)</p>
             $(x * 5)
         """
@@ -48,7 +48,7 @@ when true:
         assert actual() == expected
 
     block: #forIn
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test for</p>
             <ul>
                 $for y in 0..2 {
@@ -68,7 +68,7 @@ when true:
         assert actual() == expected
 
     block: #while
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test while/stmt</p>
             <ul>
                 ${ var y = 0 }
@@ -91,7 +91,7 @@ when true:
         assert actual() == expected
 
     block: #ifElifElse
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test if/elif/else</p>
             $if x == 8 {
                 <div>x is 8!</div>
@@ -111,7 +111,7 @@ when true:
         assert actual() == expected
 
     block: #multiLineStatements
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test multiline statements</p>
             ${
                 var x = 5
@@ -127,7 +127,7 @@ when true:
         assert actual() == expected
 
     block: #caseOfElse
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test case</p>
             $case x
             $of 5 {
@@ -148,26 +148,26 @@ when true:
 
 
 when true: #embeddingTest
-    proc no_substitution: string = tmpl html"""
+    proc no_substitution: string = tmpli html"""
         <h1>Template test!</h1>
     """
 
     # # Single variable substitution
-    proc substitution(who = "nobody"): string = tmpl html"""
+    proc substitution(who = "nobody"): string = tmpli html"""
         <div id="greeting">hello $who!</div>
     """
 
     # Expression template
     proc test_expression(nums: openarray[int] = []): string =
         var i = 2
-        tmpl html"""
+        tmpli html"""
             $(no_substitution())
             $(substitution("Billy"))
             <div id="age">Age: $($nums[i] & "!!")</div>
         """
 
     proc test_statements(nums: openarray[int] = []): string =
-        tmpl html"""
+        tmpli html"""
             $(test_expression(nums))
             $if true {
                 <ul>
@@ -195,7 +195,7 @@ when true: #embeddingTest
 
 when defined(future):
     block: #tryCatch
-        proc actual: string = tmpl html"""
+        proc actual: string = tmpli html"""
             <p>Test try/catch</p>
             <div>
                 $try {
