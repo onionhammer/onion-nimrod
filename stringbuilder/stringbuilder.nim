@@ -67,10 +67,23 @@ when isMainModule:
     echo($result)
     assert($result == "line 1line 2line 3")
 
+    # Value
     # Mock Data
     var data = newSeq[string]()
-    for i in 0.. 10000:
+    for i in 0.. 100:
         data.add(
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
+            "How can I keep track of how long these amazingly long strings are!:" &
             "How can I keep track of how long these amazingly long strings are!:" &
             "How can I keep track of how long these amazingly long strings are!:" &
             "How can I keep track of how long these amazingly long strings are!:" &
@@ -78,7 +91,7 @@ when isMainModule:
 
     # Benchmark setup
     template bench(name, operation: stmt): stmt =
-        const times = 1000
+        const times = 100000
         let start   = cpuTime()
         for i in 0.. < times:
             operation
@@ -86,13 +99,20 @@ when isMainModule:
         echo "$1 Operation took $2s" % [ name, duration.formatFloat(precision=4) ]
 
     when true:
+        var
+            str: string
+            sb: PStringBuilder
+
         bench("String Concatenation"):
-            var result = ""
+            str = ""
             for line in data:
-                result &= line
+                str &= line
 
         bench("StringBuilder Concatenation"):
-            var result = stringbuilder("");
+            sb = stringbuilder("")
             for line in data:
-                result &= line
-            discard $result
+                sb &= line
+            discard $sb
+
+        assert($sb == str)
+        echo "strings matched"
