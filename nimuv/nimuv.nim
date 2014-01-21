@@ -17,7 +17,7 @@ when defined(windows):
     {.passl: "-lPsapi"}
     {.passl: "-lIPHLPAPI"}
 
-import parseutils
+import strtabs, strutils, parseutils
 
 type
     TUVCallback = proc(client: PClient): cint {.cdecl.}
@@ -25,12 +25,11 @@ type
     UV_tcp {.importc: "uv_tcp_t", header: "uv.h".} = object
     UV_write {.importc: "uv_write_t".} = object
 
-    TClient {.exportc: "client_t".} = object
+    TClient* {.exportc: "client_t".} = object
         handle {.exportc.}: UV_tcp
         req {.exportc.}: UV_write
 
-    PClient = ptr TClient
-
+    PClient* = ptr TClient
 
 proc start_server(ip: cstring, port: cint) {.nodecl, importc.}
 
@@ -38,35 +37,28 @@ proc end_response(client: PClient) {.nodecl, importc.}
 
 proc send_response(client: PClient, buffer: cstring) {.nodecl, importc.}
 
-proc append_header(client: PClient, header_str: cstring) {.exportc, cdecl.} =
-    var value, key: string
-    var header = $header_str
-    var i = 0
-
-    inc i, header.parseUntil(key, ':', i) + 1
-    inc i, header.skipWhitespace(i)
-    discard header.parseUntil(value, {'\r', '\L'}, i)
-
+# Include C server
 include uv
 
 
 # Wrapper Code
-import strtabs
-
 type
-    TServer* = object
-        client: PClient
+    TUVRequest* = object
+        client*: PClient
         reqMethod*: string     ## Request method. GET or POST.
         path*, query*: string  ## path and query the client requested
         headers*: PStringTable ## headers with which the client made the request
         body*: string          ## only set with POST requests
         ip*: string            ## ip address of the requesting client
 
+
 # Fields
-var handleResponse* = proc(s: TServer) = nil
+var handleResponse* = proc(s: TUVRequest) = nil
+const wwwNL* = "\r\L"
 
 # Procedures
-proc parse_header(server: var TServer, reqBuffer: cstring, length: int): bool =
+proc parse_request(server: var TUVRequest, reqBuffer: cstring, length: int): bool =
+    ## Parse path & headers for request
     var index  = 0
     var header = $reqBuffer
 
@@ -76,51 +68,60 @@ proc parse_header(server: var TServer, reqBuffer: cstring, length: int): bool =
     inc index, header.parseUntil(reqMethod, ' ', index) + 1
     inc index, header.parseUntil(path, ' ', index) + 1
     inc index, header.parseUntil(version, {'\r', '\L'}, index)
-    inc index, header.skipWhitespace(index)
+    inc index, header.skipUntil('\L', index) + 1
 
     # Check req method
+    reqMethod = reqMethod.toUpper
     case reqMethod:
     of "GET", "POST": result = true
     else: return false
 
-    server.headers   = newStringTable(modeCaseInsensitive)
-    server.path      = path
-    server.reqMethod = reqMethod
+    server.headers     = newStringTable(modeCaseInsensitive)
+    server.reqMethod   = reqMethod
+
+    # Retrieve query string
+    var pathIndex = 0
+    inc pathIndex, path.parseUntil(server.path, '?', pathIndex) + 1
+    server.query = path.substr(pathIndex)
 
     # Parse header
     var key, value: string
     while index < length:
         # Parse until ":"
         inc index, header.parseUntil(key, {':', '\r', '\L'}, index) + 1
+
         inc index, header.skipWhitespace(index)
         inc index, header.parseUntil(value, {'\r', '\L'}, index)
-        inc index, header.skipWhitespace(index) - 1
-        server.headers[key] = value
+        inc index, header.skipUntil('\L', index)
+        if key.len == 0: break
 
+        server.headers[key] = value
         inc index
+
+    # Rest of request is the body
+    server.body = header.substr(index)
 
 
 proc http_response(client: PClient, reqBuffer: cstring, nread: int) {.cdecl, exportc.} =
-    # Build TServer/client object
-    var server = TServer(client: client)
+    # Build TUVRequest/client object
+    var server = TUVRequest(client: client)
 
-    if parse_header(server, reqBuffer, nread):
+    if parse_request(server, reqBuffer, nread):
         handleResponse(server)
     else:
         send_response(client, "Unrecognized response")
-
-    end_response(client)
+        end_response(client)
 
 
 template `&=`*(result, value): expr {.immediate.} =
     add(result, value)
 
 
-proc add*(result: TServer, value: string) =
+proc add*(result: TUVRequest, value: string) =
     send_response(result.client, value)
 
 
-proc close*(s: TServer) =
+proc close*(s: TUVRequest) =
     end_response(s.client)
 
 
@@ -131,7 +132,7 @@ proc run*(ip = "0.0.0.0", port = 8080) =
 # Tests
 when isMainModule:
 
-    proc onRequest(result: TServer) =
+    proc onRequest(result: TUVRequest) =
         result.add(result.headers["cache-control"] & "\r\n")
         result.add("hello world\r\n")
         result.add("i like cheese")

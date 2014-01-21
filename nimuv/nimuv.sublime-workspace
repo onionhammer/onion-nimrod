@@ -227,7 +227,15 @@
 			"file": "nimuv.nim",
 			"settings":
 			{
-				"buffer_size": 3973,
+				"buffer_size": 3845,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "uv.nim",
+			"settings":
+			{
+				"buffer_size": 2133,
 				"line_ending": "Windows"
 			}
 		},
@@ -240,20 +248,24 @@
 			}
 		},
 		{
-			"file": "/C/Users/Erik/.babel/pkgs/jester-0.1.0/jester.nim",
+			"file": "/E/Development/WebFrame/src/server.nim",
 			"settings":
 			{
-				"buffer_size": 23502,
-				"line_ending": "Unix"
+				"buffer_size": 1669,
+				"line_ending": "Windows"
 			}
 		}
 	],
 	"build_system": "",
 	"command_palette":
 	{
-		"height": 135.0,
+		"height": 285.0,
 		"selected_items":
 		[
+			[
+				"nimi",
+				"Nimrod: Index"
+			],
 			[
 				"proj",
 				"Project: Close"
@@ -293,10 +305,6 @@
 			[
 				"projec",
 				"Project: Close"
-			],
-			[
-				"nimi",
-				"Nimrod: Index"
 			],
 			[
 				"nim",
@@ -524,6 +532,11 @@
 	},
 	"file_history":
 	[
+		"/E/Development/GitHub/onion-nimrod/nimuv/nimuv.babel",
+		"/e/development/github/nimrod/lib/system.nim",
+		"/e/development/github/nimrod/lib/pure/parseutils.nim",
+		"/E/Development/GitHub/onion-nimrod/.gitignore",
+		"/C/Users/Erik/.babel/pkgs/jester-0.1.0/jester.nim",
 		"/e/development/github/nimrod/lib/pure/strtabs.nim",
 		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/User/Preferences.sublime-settings",
 		"/E/Development/nimuv/include/uv.h",
@@ -531,7 +544,6 @@
 		"/E/Development/GitHub/libuv/Makefile.mingw",
 		"/E/Development/nimuv/include/http_parser.h",
 		"/E/Development/nimuv/nimcache/nimuv_nimuv.c",
-		"/e/development/github/nimrod/lib/pure/parseutils.nim",
 		"/E/Development/nimuv/uv.nim",
 		"/E/Development/nimuv/uv.c",
 		"/E/Development/nimuv/test.c",
@@ -592,7 +604,6 @@
 		"/E/Development/IRCFamiliar/trunk/src/web/homecontroller.nim",
 		"/E/Development/IRCFamiliar/trunk/src/compression.nim",
 		"/E/Development/IRCFamiliar/trunk/src/web/mocks.nim",
-		"/C/Users/Erik/.babel/pkgs/jester-0.1.0/jester.nim",
 		"/E/Development/IRCFamiliar/trunk/src/versioninfo.nim",
 		"/E/Development/IRCFamiliar/trunk/src/version.info",
 		"/E/Development/IRCFamiliar/trunk/src/web/servicecontroller.nim",
@@ -645,13 +656,10 @@
 		"/E/Development/IRCFamiliar/trunk/src/ircclient/usertracker.nim",
 		"/e/development/ircfamiliar/trunk/src/ircclient/manager.nim",
 		"/e/development/github/nimrod/lib/pure/asyncio.nim",
-		"/e/development/github/nimrod/lib/system.nim",
 		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/Nimrod-Sublime/nimrod_cfg.YAML-tmLanguage",
 		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/Nimrod-Sublime/nimrodcomments.tmPreferences",
 		"/e/development/ircfamiliar/trunk/src/web/views/templates/master.nim",
-		"/E/Development/IRCFamiliar/trunk/src/public/scripts/src/channelview.ts",
-		"/E/Development/IRCFamiliar/trunk/src/makefile-minify.js",
-		"/e/development/ircfamiliar/trunk/src/web/views/partials/channellist.nim"
+		"/E/Development/IRCFamiliar/trunk/src/public/scripts/src/channelview.ts"
 	],
 	"find":
 	{
@@ -671,6 +679,10 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"send_response",
+			"end_response",
+			"append_header",
+			"sublime-workspace",
 			"cooki",
 			"cook",
 			"send_response",
@@ -794,11 +806,7 @@
 			"uv_handle_t",
 			"uv_acc",
 			"uv_strerror",
-			"error(",
-			"uv_last_error",
-			"uv_err_t",
-			"uv_bind",
-			"client"
+			"error("
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -825,15 +833,15 @@
 					"file": "nimuv.nim",
 					"settings":
 					{
-						"buffer_size": 3973,
+						"buffer_size": 3845,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								524,
-								524
+								1565,
+								1565
 							]
 						],
 						"settings":
@@ -843,7 +851,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 0.0,
+						"translation.y": 997.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -851,11 +859,39 @@
 			]
 		},
 		{
-			"selected": 1,
+			"selected": 0,
 			"sheets":
 			[
 				{
 					"buffer": 1,
+					"file": "uv.nim",
+					"settings":
+					{
+						"buffer_size": 2133,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1114,
+								1115
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 677.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 2,
 					"file": "/E/Development/GitHub/Nimrod/lib/pure/httpserver.nim",
 					"settings":
 					{
@@ -883,25 +919,25 @@
 					"type": "text"
 				},
 				{
-					"buffer": 2,
-					"file": "/C/Users/Erik/.babel/pkgs/jester-0.1.0/jester.nim",
+					"buffer": 3,
+					"file": "/E/Development/WebFrame/src/server.nim",
 					"settings":
 					{
-						"buffer_size": 23502,
+						"buffer_size": 1669,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								717,
-								717
+								0,
+								0
 							]
 						],
 						"settings":
 						{
 							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
-							"tab_size": 2,
+							"tab_size": 4,
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
