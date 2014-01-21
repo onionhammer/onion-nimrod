@@ -83,7 +83,7 @@ proc parse_header(server: var TServer, reqBuffer: cstring, length: int): bool =
     of "GET", "POST": result = true
     else: return false
 
-    server.headers   = newStringTable()
+    server.headers   = newStringTable(modeCaseInsensitive)
     server.path      = path
     server.reqMethod = reqMethod
 
@@ -132,7 +132,7 @@ proc run*(ip = "0.0.0.0", port = 8080) =
 when isMainModule:
 
     proc onRequest(result: TServer) =
-        result.add(result.headers["Cache-Control"] & "\r\n")
+        result.add(result.headers["cache-control"] & "\r\n")
         result.add("hello world\r\n")
         result.add("i like cheese")
         result.close()

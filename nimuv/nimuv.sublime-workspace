@@ -227,8 +227,24 @@
 			"file": "nimuv.nim",
 			"settings":
 			{
-				"buffer_size": 3744,
+				"buffer_size": 3973,
 				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/E/Development/GitHub/Nimrod/lib/pure/httpserver.nim",
+			"settings":
+			{
+				"buffer_size": 15698,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "/C/Users/Erik/.babel/pkgs/jester-0.1.0/jester.nim",
+			"settings":
+			{
+				"buffer_size": 23502,
+				"line_ending": "Unix"
 			}
 		}
 	],
@@ -655,6 +671,8 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"cooki",
+			"cook",
 			"send_response",
 			"EOF",
 			"end_respo",
@@ -780,9 +798,7 @@
 			"uv_last_error",
 			"uv_err_t",
 			"uv_bind",
-			"client",
-			"client_t",
-			"uv_err"
+			"client"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -809,21 +825,83 @@
 					"file": "nimuv.nim",
 					"settings":
 					{
-						"buffer_size": 3744,
+						"buffer_size": 3973,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								0,
-								0
+								524,
+								524
 							]
 						],
 						"settings":
 						{
 							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
 							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 1,
+			"sheets":
+			[
+				{
+					"buffer": 1,
+					"file": "/E/Development/GitHub/Nimrod/lib/pure/httpserver.nim",
+					"settings":
+					{
+						"buffer_size": 15698,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								9031,
+								9033
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
+							"tab_size": 2,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 5409.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 2,
+					"file": "/C/Users/Erik/.babel/pkgs/jester-0.1.0/jester.nim",
+					"settings":
+					{
+						"buffer_size": 23502,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								717,
+								717
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
+							"tab_size": 2,
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
@@ -852,11 +930,18 @@
 				0,
 				1,
 				1
+			],
+			[
+				1,
+				0,
+				2,
+				1
 			]
 		],
 		"cols":
 		[
 			0.0,
+			0.5,
 			1.0
 		],
 		"rows":

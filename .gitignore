@@ -1,6 +1,7 @@
 nimcache/
 *.exe
 websockets/websockets
+*.sublime-workspace
 
 #################
 ## Eclipse
