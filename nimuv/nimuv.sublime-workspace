@@ -251,7 +251,7 @@
 			"file": "nimuv.nim",
 			"settings":
 			{
-				"buffer_size": 5216,
+				"buffer_size": 5323,
 				"line_ending": "Windows"
 			}
 		},
@@ -259,7 +259,7 @@
 			"file": "nimuv.c",
 			"settings":
 			{
-				"buffer_size": 2191,
+				"buffer_size": 2518,
 				"line_ending": "Windows"
 			}
 		},
@@ -267,7 +267,7 @@
 			"file": "nimuv.h",
 			"settings":
 			{
-				"buffer_size": 156,
+				"buffer_size": 178,
 				"line_ending": "Windows"
 			}
 		}
@@ -687,7 +687,7 @@
 	},
 	"find_in_files":
 	{
-		"height": 98.0,
+		"height": 0.0,
 		"where_history":
 		[
 			"*.h",
@@ -699,6 +699,10 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"http_readheaders",
+			"fprint",
+			"on_close",
+			"CHECKCLOSE",
 			"echo",
 			"parse_request",
 			"http_response",
@@ -822,11 +826,7 @@
 			"uv_tcp_s",
 			"all",
 			"based",
-			"last",
-			"error(",
-			"uv_last_error",
-			"uv_errno_t",
-			"uv_buf_t"
+			"last"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -853,15 +853,15 @@
 					"file": "nimuv.nim",
 					"settings":
 					{
-						"buffer_size": 5216,
+						"buffer_size": 5323,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								1559,
-								1559
+								2071,
+								2071
 							]
 						],
 						"settings":
@@ -871,7 +871,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 960.0,
+						"translation.y": 1381.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -887,15 +887,15 @@
 					"file": "nimuv.c",
 					"settings":
 					{
-						"buffer_size": 2191,
+						"buffer_size": 2518,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								369,
-								369
+								878,
+								878
 							]
 						],
 						"settings":
@@ -905,7 +905,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 0.0,
+						"translation.y": 114.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -915,15 +915,15 @@
 					"file": "nimuv.h",
 					"settings":
 					{
-						"buffer_size": 156,
+						"buffer_size": 178,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								156,
-								156
+								178,
+								178
 							]
 						],
 						"settings":
@@ -967,7 +967,7 @@
 		"cols":
 		[
 			0.0,
-			0.5,
+			0.505172413793,
 			1.0
 		],
 		"rows":
@@ -1061,7 +1061,7 @@
 		[
 			[
 				"",
-				"/E/Development/WebFrame/src/webframe.sublime-project"
+				"/C/Users/eoleary/Documents/GitHub/webframe/src/webframe.sublime-project"
 			]
 		],
 		"width": 380.0

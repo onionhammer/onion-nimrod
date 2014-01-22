@@ -1,7 +1,10 @@
+// Includes
 #include <stdio.h>
 #include <string.h>
 #include "include/uv.h"
 
+
+// Types
 typedef struct
 {
     uv_tcp_t handle;

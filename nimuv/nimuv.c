@@ -1,6 +1,8 @@
 //TODO::
 // - Add timeouts to request
 
+
+// Includes
 #include "nimuv.h"
 
 
@@ -9,20 +11,14 @@ static uv_tcp_t server;
 static uv_loop_t* loop;
 
 
-// Functions
-#define CHECKCLOSE(r, x) \
-    if (r) { \
-        fprintf(stderr, "%s\n", uv_strerror(r)); \
-        uv_close(x, on_close); \
-    }
+// Declarations
+void end_response(client_t* client);
 
+
+// Events
 void on_close(uv_handle_t* handle, int status) {
     client_t* client = handle->data;
     free(client);
-}
-
-void end_response(client_t* client) {
-    uv_close(&client->handle, on_close);
 }
 
 void on_alloc(uv_tcp_t* tcp, size_t suggested_size, uv_buf_t* buf) {
@@ -34,13 +30,19 @@ void on_read(uv_tcp_t* tcp, ssize_t nread, const uv_buf_t* buf) {
     client_t* client = tcp->data;
 
     if (nread >= 0) {
-        // TODO Concat buffer
+        // Concat buffer
         if (client->nim_request == NULL)
-            client->nim_request = http_readheaders(client, buf->base, nread);
-        else
-            http_continue(client->nim_request, buf->base, nread);
+            client->nim_request = http_readheader(client, buf->base, nread);
+        else if (!http_continue(client->nim_request, buf->base, nread))
+            // Request is now completely read
+            client->nim_request = NULL;
     }
     else {
+        //If this is a broken request, give opportunity
+        //to free memory
+        if (client->nim_request != NULL)
+            http_end(client->nim_request);
+
         // End response
         end_response(client);
     }
@@ -65,12 +67,24 @@ void on_connection(uv_tcp_t* handle) {
     uv_read_start(&client->handle, on_alloc, on_read);
 }
 
-// External Interface
+
+// Functions
+void end_response(client_t* client) {
+    uv_close(&client->handle, on_close);
+}
+
 void send_response(client_t* client, char* buffer) {
     uv_buf_t resp_buffer = uv_buf_init(buffer, strlen(buffer));
 
     int r = uv_write(&client->req, &client->handle, &resp_buffer, 1, NULL);
-    CHECKCLOSE(r, &client->handle)
+    if (r) {
+        fprintf(stderr, "%s\n", uv_strerror(r));
+
+        if (client->nim_request != NULL)
+            http_end(client->nim_request);
+
+        uv_close(&client->handle, on_close);
+    }
 }
 
 void start_server(char* ip, int port) {

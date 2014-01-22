@@ -110,8 +110,8 @@ proc parse_request(request: var TUVRequest, reqBuffer: cstring, length: int): TH
        return HeaderMultiPart
 
 
-proc http_readheaders(client: PClient, reqBuffer: cstring, nread: cint): TUVRequest {.cdecl, exportc.} =
-    # Build TUVRequest/client object
+proc http_readheader(client: PClient, reqBuffer: cstring, nread: cint): TUVRequest {.cdecl, exportc.} =
+    ## Build TUVRequest/client object
     var request = TUVRequest(client: client)
 
     case parse_request(request, reqBuffer, nread)
@@ -129,13 +129,13 @@ proc http_readheaders(client: PClient, reqBuffer: cstring, nread: cint): TUVRequ
         end_response(client)
 
 
-proc http_continue(request: TUVRequest, reqBuffer: cstring, nread: cint) {.cdecl, exportc.} =
-    # Continue request
+proc http_continue(request: TUVRequest, reqBuffer: cstring, nread: cint): bool {.cdecl, exportc.} =
+    ## Continue request
     inc request.read, nread
 
     if request.read > MAX_READ:
         end_response(request.client)
-        return
+        return false
 
     # All bytes from request have been read, append to body
     var bodyLength = request.body.len
@@ -147,9 +147,13 @@ proc http_continue(request: TUVRequest, reqBuffer: cstring, nread: cint) {.cdecl
     if request.read >= request.length:
         gc_unref(request)
         handleResponse(request)
+        return false
+
+    return true
 
 
-proc http_timeout(request: TUVRequest) {.cdecl, exportc.} =
+proc http_end(request: TUVRequest) {.cdecl, exportc.} =
+    ## Unreference the request - it was cancelled or broken
     gc_unref(request)
 
 
