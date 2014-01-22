@@ -4,6 +4,30 @@
 		"selected_items":
 		[
 			[
+				"body",
+				"bodyLength"
+			],
+			[
+				"nim",
+				"nim_request"
+			],
+			[
+				"req",
+				"request"
+			],
+			[
+				"content",
+				"contentLength"
+			],
+			[
+				"conetn",
+				"contentLength"
+			],
+			[
+				"conte",
+				"contentLength"
+			],
+			[
 				"parsE",
 				"parseUntil"
 			],
@@ -128,10 +152,6 @@
 				"body_string"
 			],
 			[
-				"body",
-				"body_string"
-			],
-			[
 				"open",
 				"open_braces"
 			],
@@ -227,31 +247,39 @@
 			"file": "nimuv.nim",
 			"settings":
 			{
-				"buffer_size": 3845,
+				"buffer_size": 4956,
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "uv.nim",
+			"file": "/E/Development/GitHub/onion-nimrod/stringbuilder/stringbuilder.nim",
 			"settings":
 			{
-				"buffer_size": 2133,
+				"buffer_size": 3574,
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "/E/Development/GitHub/Nimrod/lib/pure/httpserver.nim",
+			"file": "nimuv.c",
 			"settings":
 			{
-				"buffer_size": 15698,
+				"buffer_size": 2285,
 				"line_ending": "Windows"
 			}
 		},
 		{
-			"file": "/E/Development/WebFrame/src/server.nim",
+			"file": "/E/Ideas/Aggression.txt",
 			"settings":
 			{
-				"buffer_size": 1669,
+				"buffer_size": 184,
+				"line_ending": "Windows"
+			}
+		},
+		{
+			"file": "nimuv.h",
+			"settings":
+			{
+				"buffer_size": 156,
 				"line_ending": "Windows"
 			}
 		}
@@ -259,9 +287,21 @@
 	"build_system": "",
 	"command_palette":
 	{
-		"height": 285.0,
+		"height": 375.0,
 		"selected_items":
 		[
+			[
+				"ni",
+				"Nimrod: Index"
+			],
+			[
+				"nim",
+				"Nimrod: Modules"
+			],
+			[
+				"ssc",
+				"Set Syntax: C"
+			],
 			[
 				"nimi",
 				"Nimrod: Index"
@@ -307,10 +347,6 @@
 				"Project: Close"
 			],
 			[
-				"nim",
-				"Nimrod: Modules"
-			],
-			[
 				"ssni",
 				"Set Syntax: Nimrod"
 			],
@@ -325,10 +361,6 @@
 			[
 				"replshe",
 				"SublimeREPL: Shell"
-			],
-			[
-				"ni",
-				"Nimrod: Index"
 			],
 			[
 				"project",
@@ -532,6 +564,13 @@
 	},
 	"file_history":
 	[
+		"/E/Development/GitHub/onion-nimrod/nimuv/nimcache/nimuv_nimuv.c",
+		"/E/Development/GitHub/onion-nimrod/nimuv/include/uv.h",
+		"/E/Development/GitHub/onion-nimrod/nimuv/include/uv-win.h",
+		"/E/Development/GitHub/Nimrod/lib/pure/httpserver.nim",
+		"/E/Development/WebFrame/src/server.nim",
+		"/E/Development/GitHub/onion-nimrod/nimuv/nimuv.h",
+		"/E/Development/GitHub/onion-nimrod/nimuv/nimuv.c",
 		"/E/Development/GitHub/onion-nimrod/nimuv/nimuv.babel",
 		"/e/development/github/nimrod/lib/system.nim",
 		"/e/development/github/nimrod/lib/pure/parseutils.nim",
@@ -652,14 +691,7 @@
 		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/SublimeREPL/SublimeREPL.sublime-settings",
 		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/User/SublimeREPL.sublime-settings",
 		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/PersistentRegexHighlight/Default (Linux).sublime-keymap",
-		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/PersistentRegexHighlight/Default (Windows).sublime-keymap",
-		"/E/Development/IRCFamiliar/trunk/src/ircclient/usertracker.nim",
-		"/e/development/ircfamiliar/trunk/src/ircclient/manager.nim",
-		"/e/development/github/nimrod/lib/pure/asyncio.nim",
-		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/Nimrod-Sublime/nimrod_cfg.YAML-tmLanguage",
-		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/Nimrod-Sublime/nimrodcomments.tmPreferences",
-		"/e/development/ircfamiliar/trunk/src/web/views/templates/master.nim",
-		"/E/Development/IRCFamiliar/trunk/src/public/scripts/src/channelview.ts"
+		"/C/Users/Erik/AppData/Roaming/Sublime Text 2/Packages/PersistentRegexHighlight/Default (Windows).sublime-keymap"
 	],
 	"find":
 	{
@@ -667,7 +699,7 @@
 	},
 	"find_in_files":
 	{
-		"height": 0.0,
+		"height": 98.0,
 		"where_history":
 		[
 			"*.h",
@@ -679,6 +711,22 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"http_response",
+			"client_",
+			"client_t",
+			"server",
+			"eof",
+			"uv_eof",
+			"parsed",
+			"#",
+			"http_response",
+			"parse_request",
+			"nim",
+			"TUVCallback",
+			"onrequest_cb",
+			"assert",
+			"http_response",
+			"parse_request",
 			"send_response",
 			"end_response",
 			"append_header",
@@ -790,23 +838,7 @@
 			"uv_errno_t",
 			"uv_buf_t",
 			"haskey",
-			"_init",
-			"uv_tcp_init",
-			"uv_accept",
-			"handle",
-			"handle(",
-			".base",
-			"uv_buf_t",
-			"uv_alloc_cb",
-			"uv_close_cb",
-			"_close\n_close",
-			"_close",
-			"close",
-			"on_close",
-			"uv_handle_t",
-			"uv_acc",
-			"uv_strerror",
-			"error("
+			"_init"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -833,15 +865,15 @@
 					"file": "nimuv.nim",
 					"settings":
 					{
-						"buffer_size": 3845,
+						"buffer_size": 4956,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								1565,
-								1565
+								2740,
+								2742
 							]
 						],
 						"settings":
@@ -851,7 +883,95 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 997.0,
+						"translation.y": 1000.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 1,
+					"file": "/E/Development/GitHub/onion-nimrod/stringbuilder/stringbuilder.nim",
+					"settings":
+					{
+						"buffer_size": 3574,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								1018,
+								1025
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				}
+			]
+		},
+		{
+			"selected": 1,
+			"sheets":
+			[
+				{
+					"buffer": 2,
+					"file": "nimuv.c",
+					"settings":
+					{
+						"buffer_size": 2285,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								59,
+								59
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/C++/C.tmLanguage",
+							"tab_size": 4,
+							"translate_tabs_to_spaces": true
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
+						"zoom_level": 1.0
+					},
+					"type": "text"
+				},
+				{
+					"buffer": 3,
+					"file": "/E/Ideas/Aggression.txt",
+					"settings":
+					{
+						"buffer_size": 184,
+						"regions":
+						{
+						},
+						"selection":
+						[
+							[
+								184,
+								184
+							]
+						],
+						"settings":
+						{
+							"syntax": "Packages/Text/Plain text.tmLanguage"
+						},
+						"translation.x": 0.0,
+						"translation.y": 0.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -863,82 +983,24 @@
 			"sheets":
 			[
 				{
-					"buffer": 1,
-					"file": "uv.nim",
+					"buffer": 4,
+					"file": "nimuv.h",
 					"settings":
 					{
-						"buffer_size": 2133,
+						"buffer_size": 156,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								1114,
-								1115
+								156,
+								156
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 677.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 2,
-					"file": "/E/Development/GitHub/Nimrod/lib/pure/httpserver.nim",
-					"settings":
-					{
-						"buffer_size": 15698,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								9031,
-								9033
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
-							"tab_size": 2,
-							"translate_tabs_to_spaces": true
-						},
-						"translation.x": 0.0,
-						"translation.y": 5409.0,
-						"zoom_level": 1.0
-					},
-					"type": "text"
-				},
-				{
-					"buffer": 3,
-					"file": "/E/Development/WebFrame/src/server.nim",
-					"settings":
-					{
-						"buffer_size": 1669,
-						"regions":
-						{
-						},
-						"selection":
-						[
-							[
-								0,
-								0
-							]
-						],
-						"settings":
-						{
-							"syntax": "Packages/Nimrod-Sublime/nimrod.tmLanguage",
-							"tab_size": 4,
-							"translate_tabs_to_spaces": true
+							"syntax": "Packages/C++/C++.tmLanguage"
 						},
 						"translation.x": 0.0,
 						"translation.y": 0.0,
@@ -972,12 +1034,19 @@
 				0,
 				2,
 				1
+			],
+			[
+				2,
+				0,
+				3,
+				1
 			]
 		],
 		"cols":
 		[
 			0.0,
-			0.5,
+			0.423277310924,
+			0.840672268908,
 			1.0
 		],
 		"rows":
@@ -1080,6 +1149,6 @@
 	"show_open_files": false,
 	"show_tabs": true,
 	"side_bar_visible": true,
-	"side_bar_width": 136.0,
+	"side_bar_width": 180.0,
 	"status_bar_visible": true
 }

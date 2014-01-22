@@ -1,11 +1,4 @@
-# UV Interface
-# References:
-# http://nikhilm.github.io/uvbook/index.html
-# https://github.com/joyent/http-parser
-# https://github.com/joyent/libuv/tree/master/samples/socks5-proxy
-# webserver: https://github.com/philips/libuv-webserver
-# video: http://vimeo.com/24713213 :39m
-# parser: https://github.com/joyent/http-parser
+## Nimrod HTTP server powered by LibUV
 
 # C - Imports
 {.passl: "-L."}
@@ -17,50 +10,50 @@ when defined(windows):
     {.passl: "-lPsapi"}
     {.passl: "-lIPHLPAPI"}
 
+# Imports
 import strtabs, strutils, parseutils
 
+# Compile C server
+{.compile: "nimuv.c".}
+
+# Types
 type
-    TUVCallback = proc(client: PClient): cint {.cdecl.}
+    PClient* = ptr object
 
-    UV_tcp {.importc: "uv_tcp_t", header: "uv.h".} = object
-    UV_write {.importc: "uv_write_t".} = object
-
-    TClient* {.exportc: "client_t".} = object
-        handle {.exportc.}: UV_tcp
-        req {.exportc.}: UV_write
-
-    PClient* = ptr TClient
-
-proc start_server(ip: cstring, port: cint) {.nodecl, importc.}
-
-proc end_response(client: PClient) {.nodecl, importc.}
-
-proc send_response(client: PClient, buffer: cstring) {.nodecl, importc.}
-
-# Include C server
-include uv
-
-
-# Wrapper Code
-type
-    TUVRequest* = object
+    TUVRequest* = ref object
         client*: PClient
         reqMethod*: string     ## Request method. GET or POST.
         path*, query*: string  ## path and query the client requested
         headers*: PStringTable ## headers with which the client made the request
         body*: string          ## only set with POST requests
         ip*: string            ## ip address of the requesting client
+        length, read: int      ## Length & number of bytes read for request
+
+    THeaderParseResult = enum
+        HeaderParseOK, HeaderMultiPart, HeaderInvalid
 
 
 # Fields
 var handleResponse* = proc(s: TUVRequest) = nil
 const wwwNL* = "\r\L"
+const MAX_READ = 10 * (1024 * 1024) # 10 Megabytes
+
 
 # Procedures
-proc parse_request(server: var TUVRequest, reqBuffer: cstring, length: int): bool =
+proc start_server(ip: cstring, port: cint) {.nodecl, importc.}
+
+
+proc end_response(client: PClient) {.nodecl, importc.}
+
+
+proc send_response(client: PClient, buffer: cstring) {.nodecl, importc.}
+
+
+proc parse_request(request: var TUVRequest, reqBuffer: cstring, length: int): THeaderParseResult =
     ## Parse path & headers for request
     var index  = 0
-    var header = $reqBuffer
+    var header = newString(length)
+    copyMem(addr header[0], reqBuffer, length)
 
     # Parse req method & path
     var reqMethod, path, version: string
@@ -73,59 +66,106 @@ proc parse_request(server: var TUVRequest, reqBuffer: cstring, length: int): boo
     # Check req method
     reqMethod = reqMethod.toUpper
     case reqMethod:
-    of "GET", "POST": result = true
-    else: return false
+    of "GET", "POST": result = HeaderParseOK
+    else: return HeaderInvalid
 
-    server.headers     = newStringTable(modeCaseInsensitive)
-    server.reqMethod   = reqMethod
+    request.headers   = newStringTable(modeCaseInsensitive)
+    request.reqMethod = reqMethod
 
     # Retrieve query string
     var pathIndex = 0
-    inc pathIndex, path.parseUntil(server.path, '?', pathIndex) + 1
-    server.query = path.substr(pathIndex)
+    inc pathIndex, path.parseUntil(request.path, '?', pathIndex) + 1
+    request.query = path.substr(pathIndex)
 
     # Parse header
     var key, value: string
     while index < length:
         # Parse until ":"
         inc index, header.parseUntil(key, {':', '\r', '\L'}, index) + 1
-
         inc index, header.skipWhitespace(index)
         inc index, header.parseUntil(value, {'\r', '\L'}, index)
         inc index, header.skipUntil('\L', index)
         if key.len == 0: break
 
-        server.headers[key] = value
+        request.headers[key] = value
         inc index
 
     # Rest of request is the body
-    server.body = header.substr(index)
+    request.body = header.substr(index)
+
+    # Check if there is any more information to receive
+    # if so, gc_ref the UVRequest
+    var contentLength: int
+    var contentLength_s = request.headers["content-length"]
+    if contentLength_s != nil and
+       contentLength_s.parseInt(contentLength) > 0 and
+       request.read < contentLength:
+       # Request has more information that must be read
+       request.read   = request.body.len
+       request.length = contentLength
+       return HeaderMultiPart
 
 
-proc http_response(client: PClient, reqBuffer: cstring, nread: int) {.cdecl, exportc.} =
+proc http_readheaders(client: PClient, reqBuffer: cstring, nread: cint): TUVRequest {.cdecl, exportc.} =
     # Build TUVRequest/client object
-    var server = TUVRequest(client: client)
+    var request = TUVRequest(client: client)
 
-    if parse_request(server, reqBuffer, nread):
-        handleResponse(server)
+    case parse_request(request, reqBuffer, nread)
+    of HeaderParseOK:
+        handleResponse(request)
+
+    of HeaderMultiPart:
+        # Continue reading from input
+        gc_ref(request)
+        return request
+
     else:
-        send_response(client, "Unrecognized response")
+        # gc_unref the UVRequest
+        send_response(client, "Unrecognized request")
         end_response(client)
 
 
+proc http_continue(request: TUVRequest, reqBuffer: cstring, nread: cint) {.cdecl, exportc.} =
+    # Continue request
+    inc request.read, nread
+
+    if request.read > MAX_READ:
+        end_response(request.client)
+        return
+
+    # All bytes from request have been read, append to body
+    var bodyLength = request.body.len
+    var newLength  = min(request.read, request.length)
+
+    request.body.setLen(newLength)
+    copyMem(addr request.body[bodyLength], reqBuffer, nread)
+
+    if request.read >= request.length:
+        gc_unref(request)
+        handleResponse(request)
+
+
+proc http_timeout(request: TUVRequest) {.cdecl, exportc.} =
+    gc_unref(request)
+
+
 template `&=`*(result, value): expr {.immediate.} =
+    ## Send data back to client
     add(result, value)
 
 
 proc add*(result: TUVRequest, value: string) =
+    ## Send data back to client
     send_response(result.client, value)
 
 
-proc close*(s: TUVRequest) =
-    end_response(s.client)
+proc close*(request: TUVRequest) =
+    ## Close the incoming request
+    end_response(request.client)
 
 
 proc run*(ip = "0.0.0.0", port = 8080) =
+    ## Run the NIM UV Server
     start_server(ip.cstring, port.cint)
 
 
