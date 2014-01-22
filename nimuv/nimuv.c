@@ -3,6 +3,7 @@
 
 
 // Includes
+#include <stdio.h>
 #include "nimuv.h"
 
 
