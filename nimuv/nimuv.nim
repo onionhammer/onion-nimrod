@@ -82,16 +82,20 @@ proc parse_request(request: var TUVRequest, reqBuffer: cstring, length: int): TH
     while index < length:
         # Parse until ":"
         inc index, header.parseUntil(key, {':', '\r', '\L'}, index) + 1
-        inc index, header.skipWhitespace(index)
-        inc index, header.parseUntil(value, {'\r', '\L'}, index)
-        inc index, header.skipUntil('\L', index)
-        if key.len == 0: break
+        if key.len != 0:
+            inc index, header.skipWhitespace(index)
+            inc index, header.parseUntil(value, {'\r', '\L'}, index)
+            inc index, header.skipUntil('\L', index)
+        else:
+            inc index, header.skipUntil('\L', index) + 1
+            break
 
         request.headers[key] = value
         inc index
 
     # Rest of request is the body
-    request.body = header.substr(index)
+    request.body = header.substr(index, length)
+    request.read = request.body.len
 
     # Check if there is any more information to receive
     # if so, gc_ref the UVRequest
