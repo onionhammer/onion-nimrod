@@ -18,16 +18,17 @@ import strtabs, strutils, parseutils
 
 # Types
 type
-    PClient* = ptr object
+    PClient = ptr object
 
     TUVRequest* = ref object
-        client*: PClient
+        client: PClient        ## Underlying nimUV client reference
+        length*, read: int     ## Length & number of bytes read for request
         reqMethod*: string     ## Request method. GET or POST.
         path*, query*: string  ## path and query the client requested
         headers*: PStringTable ## headers with which the client made the request
         body*: string          ## only set with POST requests
         ip*: string            ## ip address of the requesting client
-        length, read: int      ## Length & number of bytes read for request
+        port*: uint16          ## port of the requesting client
 
     THeaderParseResult = enum
         HeaderParseOK, HeaderMultiPart, HeaderInvalid
@@ -35,8 +36,8 @@ type
 
 # Fields
 var handleResponse* = proc(s: TUVRequest) = nil
-const wwwNL* = "\r\L"
-const MAX_READ = 10 * (1024 * 1024) # 10 Megabytes
+const wwwNL*        = "\r\L"
+const MAX_READ      = 10 * (1024 * 1024) # 10 Megabytes
 
 
 # Procedures
@@ -110,9 +111,12 @@ proc parse_request(request: var TUVRequest, reqBuffer: cstring, length: int): TH
        return HeaderMultiPart
 
 
-proc http_readheader(client: PClient, reqBuffer: cstring, nread: cint): TUVRequest {.cdecl, exportc.} =
+proc http_readheader(client: PClient, reqBuffer, ip: cstring,
+    port: cushort, nread: cint): TUVRequest {.cdecl, exportc.} =
     ## Build TUVRequest/client object
-    var request = TUVRequest(client: client)
+    var request  = TUVRequest(client: client)
+    request.ip   = $ip
+    request.port = port.uint16
 
     case parse_request(request, reqBuffer, nread)
     of HeaderParseOK:

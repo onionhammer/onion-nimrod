@@ -251,7 +251,7 @@
 			"file": "nimuv.nim",
 			"settings":
 			{
-				"buffer_size": 5323,
+				"buffer_size": 5365,
 				"line_ending": "Windows"
 			}
 		},
@@ -259,7 +259,7 @@
 			"file": "nimuv.c",
 			"settings":
 			{
-				"buffer_size": 2518,
+				"buffer_size": 2537,
 				"line_ending": "Windows"
 			}
 		},
@@ -267,7 +267,7 @@
 			"file": "nimuv.h",
 			"settings":
 			{
-				"buffer_size": 178,
+				"buffer_size": 139,
 				"line_ending": "Windows"
 			}
 		}
@@ -699,6 +699,7 @@
 		"case_sensitive": false,
 		"find_history":
 		[
+			"nimuv.",
 			"http_readheaders",
 			"fprint",
 			"on_close",
@@ -825,8 +826,7 @@
 			"UV_STREAM_FIELDS",
 			"uv_tcp_s",
 			"all",
-			"based",
-			"last"
+			"based"
 		],
 		"highlight": true,
 		"in_selection": false,
@@ -853,15 +853,15 @@
 					"file": "nimuv.nim",
 					"settings":
 					{
-						"buffer_size": 5323,
+						"buffer_size": 5365,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								2071,
-								2071
+								3688,
+								3688
 							]
 						],
 						"settings":
@@ -871,7 +871,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 1381.0,
+						"translation.y": 1596.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -887,15 +887,15 @@
 					"file": "nimuv.c",
 					"settings":
 					{
-						"buffer_size": 2518,
+						"buffer_size": 2537,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								878,
-								878
+								1897,
+								1897
 							]
 						],
 						"settings":
@@ -905,7 +905,7 @@
 							"translate_tabs_to_spaces": true
 						},
 						"translation.x": 0.0,
-						"translation.y": 114.0,
+						"translation.y": 1140.0,
 						"zoom_level": 1.0
 					},
 					"type": "text"
@@ -915,15 +915,15 @@
 					"file": "nimuv.h",
 					"settings":
 					{
-						"buffer_size": 178,
+						"buffer_size": 139,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								178,
-								178
+								104,
+								84
 							]
 						],
 						"settings":

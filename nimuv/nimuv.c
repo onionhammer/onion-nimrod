@@ -27,13 +27,34 @@ void on_alloc(uv_tcp_t* tcp, size_t suggested_size, uv_buf_t* buf) {
     buf->base = malloc(suggested_size);
 }
 
+char* get_endpoint(uv_tcp_t* tcp, short *port) {
+    int r;
+
+    // Retrieve ip & port
+    struct sockaddr_in peer;
+    int len = sizeof peer;
+    if (r = uv_tcp_getpeername(tcp, &peer, &len))
+        fprintf(stderr, "%s\n", uv_strerror(r));
+
+    *port = ntohs(peer.sin_port);
+    return inet_ntoa(peer.sin_addr);
+}
+
 void on_read(uv_tcp_t* tcp, ssize_t nread, const uv_buf_t* buf) {
+    int r;
     client_t* client = tcp->data;
 
     if (nread >= 0) {
         // Concat buffer
-        if (client->nim_request == NULL)
-            client->nim_request = http_readheader(client, buf->base, nread);
+        if (client->nim_request == NULL) {
+            short port;
+            char* ip = get_endpoint(tcp, &port);
+
+            client->nim_request = http_readheader(
+                client, buf->base,
+                ip, port, nread
+            );
+        }
         else if (!http_continue(client->nim_request, buf->base, nread))
             // Request is now completely read
             client->nim_request = NULL;
@@ -62,6 +83,7 @@ void on_connection(uv_tcp_t* handle) {
         return;
     }
 
+    // Attach client to handle
     client->handle.data = client;
 
     // Init data
