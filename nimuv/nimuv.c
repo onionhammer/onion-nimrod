@@ -130,7 +130,7 @@ void start_server(char* ip, int port) {
     uv_ip4_addr(ip, port, &address);
 
     // Bind address
-    r = uv_tcp_bind(&server, &address);
+    r = uv_tcp_bind(&server, &address, 0);
     if (r) { fprintf(stderr, "%s\n", uv_strerror(r)); }
 
     // Start listening
