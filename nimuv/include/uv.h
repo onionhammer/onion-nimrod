@@ -46,6 +46,7 @@ extern "C" {
 #endif
 
 #include "uv-errno.h"
+#include "uv-version.h"
 #include <stddef.h>
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
@@ -94,6 +95,7 @@ extern "C" {
   XX(EDESTADDRREQ, "destination address required")                            \
   XX(EEXIST, "file already exists")                                           \
   XX(EFAULT, "bad address in system call argument")                           \
+  XX(EFBIG, "file too large")                                                 \
   XX(EHOSTUNREACH, "host is unreachable")                                     \
   XX(EINTR, "interrupted system call")                                        \
   XX(EINVAL, "invalid argument")                                              \
@@ -243,20 +245,42 @@ UV_EXTERN const char* uv_version_string(void);
 
 
 /*
- * This function must be called before any other functions in libuv.
- *
  * All functions besides uv_run() are non-blocking.
  *
  * All callbacks in libuv are made asynchronously. That is they are never
  * made by the function that takes them as a parameter.
  */
-UV_EXTERN uv_loop_t* uv_loop_new(void);
-UV_EXTERN void uv_loop_delete(uv_loop_t*);
 
 /*
  * Returns the default loop.
  */
 UV_EXTERN uv_loop_t* uv_default_loop(void);
+
+/*
+ * Initializes a uv_loop_t structure.
+ */
+UV_EXTERN int uv_loop_init(uv_loop_t* loop);
+
+/*
+ * Closes all internal loop resources.  This function must only be called once
+ * the loop has finished it's execution or it will return UV_EBUSY.  After this
+ * function returns the user shall free the memory allocated for the loop.
+ */
+UV_EXTERN int uv_loop_close(uv_loop_t* loop);
+
+/*
+ * Allocates and initializes a new loop.
+ * NOTE: This function is DEPRECATED (to be removed after 0.12), users should
+ * allocate the loop and use uv_loop_init instead.
+ */
+UV_EXTERN uv_loop_t* uv_loop_new(void);
+
+/*
+ * Cleans up a loop once it has finished executio and frees its memory.
+ * NOTE: This function is DEPRECATED. Users should use uv_loop_close and free
+ * the memory themselves instead.
+ */
+UV_EXTERN void uv_loop_delete(uv_loop_t*);
 
 /*
  * This function runs the event loop. It will act differently depending on the
@@ -499,12 +523,12 @@ struct uv_shutdown_s {
 
 #define UV_HANDLE_FIELDS                                                      \
   /* public */                                                                \
-  uv_close_cb close_cb;                                                       \
   void* data;                                                                 \
   /* read-only */                                                             \
   uv_loop_t* loop;                                                            \
   uv_handle_type type;                                                        \
   /* private */                                                               \
+  uv_close_cb close_cb;                                                       \
   void* handle_queue[2];                                                      \
   UV_HANDLE_PRIVATE_FIELDS                                                    \
 
@@ -783,6 +807,11 @@ UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle,
  */
 UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
 
+enum uv_tcp_flags {
+  /* Used with uv_tcp_bind, when an IPv6 address is used */
+  UV_TCP_IPV6ONLY = 1
+};
+
 /*
  * Bind the handle to an address and port.  `addr` should point to an
  * initialized struct sockaddr_in or struct sockaddr_in6.
@@ -793,8 +822,9 @@ UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
  * That is, a successful call to uv_tcp_bind() does not guarantee that
  * the call to uv_listen() or uv_tcp_connect() will succeed as well.
  */
-UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle, const struct sockaddr* addr);
-
+UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle,
+                          const struct sockaddr* addr,
+                          unsigned int flags);
 UV_EXTERN int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
     int* namelen);
 UV_EXTERN int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
@@ -971,6 +1001,20 @@ UV_EXTERN int uv_udp_set_multicast_loop(uv_udp_t* handle, int on);
  *  0 on success, or an error code < 0 on failure.
  */
 UV_EXTERN int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
+
+
+/*
+ * Set the multicast interface to send on
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  interface_addr      interface address
+ *
+ * Returns:
+ *  0 on success, or an error code < 0 on failure.
+ */
+UV_EXTERN int uv_udp_set_multicast_interface(uv_udp_t* handle, const char* interface_addr);
 
 /*
  * Set broadcast on or off
@@ -1529,11 +1573,27 @@ UV_EXTERN int uv_spawn(uv_loop_t* loop,
 /*
  * Kills the process with the specified signal. The user must still
  * call uv_close on the process.
+ *
+ * Emulates some aspects of Unix exit status on Windows, in that while the
+ * underlying process will be terminated with a status of `1`,
+ * `uv_process_t.exit_signal` will be set to signum, so the process will appear
+ * to have been killed by `signum`.
  */
 UV_EXTERN int uv_process_kill(uv_process_t*, int signum);
 
 
-/* Kills the process with the specified signal. */
+/* Kills the process with the specified signal.
+ *
+ * Emulates some aspects of Unix signals on Windows:
+ * - SIGTERM, SIGKILL, and SIGINT call TerminateProcess() to unconditionally
+ *   cause the target to exit with status 1. Unlike Unix, this cannot be caught
+ *   or ignored (but see uv_process_kill() and uv_signal_start()).
+ * - Signal number `0` causes a check for target existence, as in Unix. Return
+ *   value is 0 on existence, UV_ESRCH on non-existence.
+ *
+ * Returns 0 on success, or an error code on failure. UV_ESRCH is portably used
+ * for non-existence of target process, other errors may be system specific.
+ */
 UV_EXTERN int uv_kill(int pid, int signum);
 
 
@@ -1608,6 +1668,36 @@ UV_EXTERN int uv_get_process_title(char* buffer, size_t size);
 UV_EXTERN int uv_set_process_title(const char* title);
 UV_EXTERN int uv_resident_set_memory(size_t* rss);
 UV_EXTERN int uv_uptime(double* uptime);
+
+typedef struct {
+  long tv_sec;
+  long tv_usec;
+} uv_timeval_t;
+
+typedef struct {
+   uv_timeval_t ru_utime; /* user CPU time used */
+   uv_timeval_t ru_stime; /* system CPU time used */
+   uint64_t ru_maxrss;    /* maximum resident set size */
+   uint64_t ru_ixrss;     /* integral shared memory size */
+   uint64_t ru_idrss;     /* integral unshared data size */
+   uint64_t ru_isrss;     /* integral unshared stack size */
+   uint64_t ru_minflt;    /* page reclaims (soft page faults) */
+   uint64_t ru_majflt;    /* page faults (hard page faults) */
+   uint64_t ru_nswap;     /* swaps */
+   uint64_t ru_inblock;   /* block input operations */
+   uint64_t ru_oublock;   /* block output operations */
+   uint64_t ru_msgsnd;    /* IPC messages sent */
+   uint64_t ru_msgrcv;    /* IPC messages received */
+   uint64_t ru_nsignals;  /* signals received */
+   uint64_t ru_nvcsw;     /* voluntary context switches */
+   uint64_t ru_nivcsw;    /* involuntary context switches */
+} uv_rusage_t;
+
+/*
+ * Get information about OS resource utilization for the current process.
+ * Please note that not all uv_rusage_t struct fields will be filled on Windows.
+ */
+UV_EXTERN int uv_getrusage(uv_rusage_t* rusage);
 
 /*
  * This allocates cpu_infos array, and sets count.  The array
@@ -1829,7 +1919,7 @@ UV_EXTERN int uv_fs_poll_stop(uv_fs_poll_t* handle);
  * signals will lead to unpredictable behavior and is strongly discouraged.
  * Future versions of libuv may simply reject them.
  *
- * Some signal support is available on Windows:
+ * Reception of some signals is emulated on Windows:
  *
  *   SIGINT is normally delivered when the user presses CTRL+C. However, like
  *   on Unix, it is not generated when terminal raw mode is enabled.
@@ -1848,11 +1938,14 @@ UV_EXTERN int uv_fs_poll_stop(uv_fs_poll_t* handle);
  *   the console buffer will also trigger a SIGWINCH signal.
  *
  * Watchers for other signals can be successfully created, but these signals
- * are never generated. These signals are: SIGILL, SIGABRT, SIGFPE, SIGSEGV,
+ * are never received. These signals are: SIGILL, SIGABRT, SIGFPE, SIGSEGV,
  * SIGTERM and SIGKILL.
  *
  * Note that calls to raise() or abort() to programmatically raise a signal are
  * not detected by libuv; these will not trigger a signal watcher.
+ *
+ * See uv_process_kill() and uv_kill() for information about support for sending
+ * signals.
  */
 struct uv_signal_s {
   UV_HANDLE_FIELDS
