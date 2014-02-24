@@ -62,7 +62,7 @@ proc reindent*(value: string, preset_indent = 0): string =
 
 
 #Define tags
-make([ html, xml, glsl, js, css ])
+make([ html, xml, glsl, js, css, rst ])
 
 
 when isMainModule:
