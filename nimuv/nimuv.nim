@@ -189,8 +189,8 @@ proc run*(ip = "0.0.0.0", port = 8080) =
 when isMainModule:
 
     handleResponse = proc(result: TUVRequest) =
-        result.add(result.headers["cache-control"] & "\r\n")
-        result.add("hello world\r\n")
+        result.add(result.headers["cache-control"] & wwwNL)
+        result.add("hello world" & wwwNL)
         result.add("i like cheese")
         result.close()
 
