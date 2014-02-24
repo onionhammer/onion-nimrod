@@ -12,9 +12,6 @@ when defined(windows):
 # Imports
 import strtabs, strutils, parseutils
 
-# Compile C server
-{.compile: "nimuv.c".}
-
 # Types
 type
     PClient = ptr object
@@ -39,16 +36,22 @@ const wwwNL*        = "\r\L"
 const MAX_READ      = 10 * (1024 * 1024) # 10 Megabytes
 
 
+# Compile C & Import Procedures
+{.compile: "nimuv.c", push nodecl, importc.}
+proc start_server(ip: cstring, port: cint)
+proc end_response(client: PClient)
+proc send_response(client: PClient, buffer: cstring)
+{.pop.}
+
+# Export Procedures to C
+{.push cdecl, exportc.}
+proc http_continue(request: TUVRequest, reqBuffer: cstring, nread: cint): bool
+proc http_readheader(client: PClient, reqBuffer, ip: cstring, port: cushort, nread: cint): TUVRequest
+proc http_end(request: TUVRequest)
+{.pop.}
+
+
 # Procedures
-proc start_server(ip: cstring, port: cint) {.nodecl, importc.}
-
-
-proc end_response(client: PClient) {.nodecl, importc.}
-
-
-proc send_response(client: PClient, buffer: cstring) {.nodecl, importc.}
-
-
 proc parse_request(request: var TUVRequest, reqBuffer: cstring, length: int): THeaderParseResult =
     ## Parse path & headers for request
     var index  = 0
@@ -113,7 +116,7 @@ proc parse_request(request: var TUVRequest, reqBuffer: cstring, length: int): TH
 
 
 proc http_readheader(client: PClient, reqBuffer, ip: cstring,
-    port: cushort, nread: cint): TUVRequest {.cdecl, exportc.} =
+    port: cushort, nread: cint): TUVRequest =
     ## Build TUVRequest/client object
     var request  = TUVRequest(client: client)
     request.ip   = $ip
@@ -134,7 +137,7 @@ proc http_readheader(client: PClient, reqBuffer, ip: cstring,
         end_response(client)
 
 
-proc http_continue(request: TUVRequest, reqBuffer: cstring, nread: cint): bool {.cdecl, exportc.} =
+proc http_continue(request: TUVRequest, reqBuffer: cstring, nread: cint): bool =
     ## Continue request
     inc request.read, nread
 
@@ -157,7 +160,7 @@ proc http_continue(request: TUVRequest, reqBuffer: cstring, nread: cint): bool {
     return true
 
 
-proc http_end(request: TUVRequest) {.cdecl, exportc.} =
+proc http_end(request: TUVRequest) =
     ## Unreference the request - it was cancelled or broken
     gc_unref(request)
 
@@ -185,12 +188,10 @@ proc run*(ip = "0.0.0.0", port = 8080) =
 # Tests
 when isMainModule:
 
-    proc onRequest(result: TUVRequest) =
+    handleResponse = proc(result: TUVRequest) =
         result.add(result.headers["cache-control"] & "\r\n")
         result.add("hello world\r\n")
         result.add("i like cheese")
         result.close()
-
-    handleResponse = onRequest
 
     run()
