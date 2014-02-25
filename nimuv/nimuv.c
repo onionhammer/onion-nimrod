@@ -21,6 +21,10 @@ static uv_tcp_t server;
 static uv_loop_t* loop;
 
 
+// Declaration
+void end_response(client_t* client);
+
+
 // Events
 void on_close(uv_handle_t* handle, int status) {
     client_t* client = handle->data;
