@@ -34,7 +34,8 @@ proc `&=`*(builder: PStringBuilder, content = "") =
 proc stringbuilder*(content = ""): PStringBuilder =
     new(result)
     result.head = newSeq[TNode]()
-    add_internal(result, content)
+    if content != "":
+        add_internal(result, content)
 
 
 proc `$`*(builder: PStringBuilder): string =
@@ -43,7 +44,7 @@ proc `$`*(builder: PStringBuilder): string =
 
     for next in builder.head:
         # Copy source to destination
-        copymem(
+        copyMem(
             address,
             next.content,
             next.len
@@ -70,24 +71,9 @@ when isMainModule:
     # Value
     # Mock Data
     var data = newSeq[string]()
-    for i in 0.. 100:
-        data.add(
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" &
-            "How can I keep track of how long these amazingly long strings are!:" & $i & "\n")
+    for i in 0.. 800:
+        data.add "test!" & $i
+        # data.add("How can I keep track of how long these amazingly long strings are!:" & $i & "\n")
 
     # Benchmark setup
     template bench(name, operation: stmt): stmt =
@@ -107,6 +93,7 @@ when isMainModule:
             str = ""
             for line in data:
                 str &= line
+            discard str
 
         bench("StringBuilder Concatenation"):
             sb = stringbuilder("")

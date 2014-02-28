@@ -106,9 +106,9 @@ proc parse_request(request: var TUVRequest, reqBuffer: cstring, length: int): TH
     # if so, gc_ref the UVRequest
     var contentLength: int
     var contentLength_s = request.headers["content-length"]
-    if contentLength_s != nil and
-       contentLength_s.parseInt(contentLength) > 0 and
-       request.read < contentLength:
+    if not isnil(contentLength_s) and
+       contentLength_s.parseInt(contentLength) != 0 and
+       request.read != contentLength:
        # Request has more information that must be read
        request.read   = request.body.len
        request.length = contentLength
