@@ -318,7 +318,7 @@ proc parse_template(node: PNimrodNode, value: string) =
 macro tmpli*(body: expr): stmt =
     result = newStmtList()
 
-    result.add parseExpr("if result == nil: result = \"\"")
+    result.add parseExpr("result = \"\"")
 
     var value = if body.kind in nnkStrLit..nnkTripleStrLit: body.strVal
                 else: body[1].strVal

@@ -47,6 +47,20 @@ when true:
         echo actual()
         assert actual() == expected
 
+    block: #escape
+        proc actual: string = tmpli js"""
+            [{
+                "hello world"
+            }]
+        """
+        const expected = js"""
+            [{
+                "hello world"
+            }]
+        """
+        echo actual()
+        assert actual() == expected
+
     block: #forIn
         proc actual: string = tmpli html"""
             <p>Test for</p>

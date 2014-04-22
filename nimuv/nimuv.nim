@@ -1,13 +1,10 @@
 ## Nimrod HTTP server powered by LibUV
 
 # C - Imports
-{.passl: "-L."}
-{.passl: "-l uv"}
+{.passl: "-L. -l uv"}
 
 when defined(windows):
-    {.passl: "-lws2_32"}
-    {.passl: "-lPsapi"}
-    {.passl: "-lIPHLPAPI"}
+    {.passl: "-lws2_32 -lPsapi -lIPHLPAPI"}
 
 # Imports
 import strtabs, strutils, parseutils
@@ -104,14 +101,14 @@ proc parse_request(request: var TUVRequest, reqBuffer: cstring, length: int): TH
 
     # Check if there is any more information to receive
     # if so, gc_ref the UVRequest
-    var contentLength: int
-    var contentLength_s = request.headers["content-length"]
-    if not isnil(contentLength_s) and
-       contentLength_s.parseInt(contentLength) != 0 and
-       request.read != contentLength:
+    var length: int
+    var content_length = request.headers["content-length"]
+    if not isnil(content_length) and
+       content_length.parseInt(length) != 0 and
+       request.read != length:
        # Request has more information that must be read
        request.read   = request.body.len
-       request.length = contentLength
+       request.length = length
        return HeaderMultiPart
 
 

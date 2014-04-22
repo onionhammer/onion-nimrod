@@ -99,6 +99,11 @@ void on_connection(uv_tcp_t* handle) {
     uv_read_start(&client->handle, on_alloc, on_read);
 }
 
+void on_write_end(uv_write_t* req, int status) {
+    // TODO - Remove this debug code
+    printf("%s\n", "Buffer written");
+}
+
 
 // Functions
 void end_response(client_t* client) {
@@ -108,7 +113,11 @@ void end_response(client_t* client) {
 void send_response(client_t* client, char* buffer) {
     uv_buf_t resp_buffer = uv_buf_init(buffer, strlen(buffer));
 
-    int r = uv_write(&client->req, &client->handle, &resp_buffer, 1, NULL);
+    int r = uv_write(&client->req, &client->handle, &resp_buffer, 1, on_write_end);
+
+    // TODO - Remove this debug code
+    printf("Queue: %d\n", client->handle.write_queue_size);
+
     if (r) {
         fprintf(stderr, "%s\n", uv_strerror(r));
 
