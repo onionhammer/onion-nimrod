@@ -5,7 +5,7 @@
 
 import strutils
 
-when defined(MacOSX):
+when defined(MacOSX) or defined(Linux):
   {.passL: "-lmarkdown".}
 
 type
