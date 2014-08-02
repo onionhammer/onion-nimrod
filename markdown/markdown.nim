@@ -145,6 +145,8 @@ proc md(s: string, f = 0): string =
   mkd_cleanup(mmiot)
   return
 
+import marshal
+
 proc md(s: string, data: var TMDMetadata, f = 0): string =
   var flags = uint32(f)
   # Check if metadata is present
@@ -161,10 +163,14 @@ proc md(s: string, data: var TMDMetadata, f = 0): string =
         offset = 3
   var str = cstring(lns[offset..lns.len-1].join("\n"))
   var mmiot = mkd_string(str, cint(str.len-1), flags)
+
   if valid_metadata:
-    data.title = $mkd_doc_title(mmiot)
+    data.title  = $mkd_doc_title(mmiot)
     data.author = $mkd_doc_author(mmiot)
-    data.date = $mkd_doc_date(mmiot)
+    data.date   = $mkd_doc_date(mmiot)
+  else:
+    echo "invalid metadata"
+
   discard mkd_compile(mmiot, flags)
   if (int(flags) and MKD_DOTOC) == MKD_DOTOC:
     var toc = allocCStringArray([""])
@@ -180,20 +186,22 @@ proc md(s: string, data: var TMDMetadata, f = 0): string =
   return
 
 # Exposed interface
-
-proc render*(value: string, flags = 0): string =
+proc toHtml*(value: string, flags = 0): string =
   ## Render markdown to HTML
   md(value, flags)
 
-proc render*(value: string, info: var TMDMetadata, flags = 0): string =
+proc toHtml*(value: string, info: var TMDMetadata, flags = 0): string =
   ## Render markdown to HTML
   md(value, info, flags)
 
 
 when isMainModule:
+  # import marshal
+
   var sample_md = """
-Hello world!
-===========
+% Title
+% Author
+% Date
 
 This is a test of some headers
 ------------------------------
@@ -204,4 +212,9 @@ This is a test of some headers
   - Sub item 1
   """
 
-  echo render(sample_md)
+  # Test 'toHtml'
+  var info: TMDMetadata
+  echo toHtml(sample_md, info)
+  echo info.date
+
+  # Test parsing out sub elements
