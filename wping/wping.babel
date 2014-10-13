@@ -1,0 +1,6 @@
+[Package]
+name = "wping"
+version = "0.1"
+author = "Onionhammer"
+description = "Periodically gets input http address and searches for specified string."
+license = "MIT"
