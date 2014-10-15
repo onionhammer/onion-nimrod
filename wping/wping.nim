@@ -55,11 +55,11 @@ proc wait*(ping: WPing) : WPing {.discardable.} =
     result = ping
     echo "Checking ", ping.address
     while true:
-        let content = httpclient.getContent(ping.address)
-
         try:
+            let content = httpclient.getContent(ping.address)
             if ping.checkMatch(content):
                 return
+
         except: discard
 
         sleep(sleepTime)
