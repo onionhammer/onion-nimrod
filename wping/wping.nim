@@ -4,6 +4,9 @@
 ##
 ## Command Line:
 ## - wping {address} {search}
+##
+## TODO:
+## - Add {startime} option
 
 # Imports
 import os, osproc, future, httpclient, strutils, parseopt2
@@ -53,8 +56,11 @@ proc wait*(ping: WPing) : WPing {.discardable.} =
     echo "Checking ", ping.address
     while true:
         let content = httpclient.getContent(ping.address)
-        if ping.checkMatch(content):
-            return
+
+        try:
+            if ping.checkMatch(content):
+                return
+        except: discard
 
         sleep(sleepTime)
         continue
