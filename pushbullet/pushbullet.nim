@@ -101,7 +101,7 @@ proc subscriptions*: JsonNode =
     ## Channels that the user has subscribed to.
     return getRequest("subscriptions").subscriptions
 
-proc push*(args: PushRequest): JsonNode =
+proc push*(args: PushRequest): JsonNode {.discardable.} =
     ## Push to a device/user or list existing pushes.
     var info = %[
         ( "type", %args.kind )
