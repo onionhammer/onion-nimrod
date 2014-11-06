@@ -24,7 +24,7 @@ type
         of Note:
             nil
         of Link:
-            url: string
+            url*: string
         of Address:
             name*: string
             address*: string
