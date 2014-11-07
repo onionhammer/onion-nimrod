@@ -2,7 +2,7 @@
 
 
 # Imports
-import strutils, json, future, httpclient
+import strutils, json, future, asyncdispatch, httpclient, strtabs
 
 
 # Fields
@@ -61,47 +61,51 @@ template `.`*(js: JsonNode, field: string): JsonNode =
     ## Automatically retrieve json node
     js[field]
 
-proc getRequest(path: string): JsonNode =
+proc getRequest(path: string): Future[JsonNode] {.async.} =
     ## GET request to pushbullet API
-    let header = headers(
-        ("Authorization", "Bearer " & getToken()))
+    let client = newAsyncHttpClient()
+    client.headers["Authorization"] = "Bearer " & getToken()
+    # let header = headers(
+    #     ("Authorization", "Bearer " & getToken()))
 
-    let response = httpclient.get(
-        root_path & path,
-        header & "\c\L")
+    let response = await client.get(root_path & path)
 
     return parseJson(response.body)
 
-proc postRequest(path: string, data: JsonNode): JsonNode =
+proc postRequest(path: string, data: JsonNode): Future[JsonNode] {.async.} =
     ## POST request to pushbullet API
-    let header = headers(
-        ("Authorization", "Bearer " & getToken()),
-        ("Content-Type", "application/json"))
+    # let header = headers(
+    #     ("Authorization", "Bearer " & getToken()),
+    #     ("Content-Type", "application/json"))
 
-    let response = httpclient.post(
-        root_path & path,
-        header & "\c\L",
-        $data)
+    let body = $data
+    let client = newAsyncHttpClient()
+    client.headers["Authorization"] = "Bearer " & getToken()
+    client.headers["Content-Type"]  = "application/json"
+    client.headers["Content-Length"]  = $body.len
+
+    let response = await client.request(
+        root_path & path, httpPOST, body)
 
     return parseJson(response.body)
 
-proc me*: JsonNode =
+proc me*: Future[JsonNode] {.async.} =
     ## Get information about the current user.
-    return getRequest("users/me")
+    return await getRequest("users/me")
 
-proc devices*: JsonNode =
+proc devices*: Future[JsonNode] {.async.} =
     ## List or create devices that can be pushed to.
-    return getRequest("devices").devices
+    return (await getRequest("devices")).devices
 
-proc contacts*: JsonNode =
+proc contacts*: Future[JsonNode] {.async.} =
     ## List your Pushbullet contacts.
-    return getRequest("contacts").contacts
+    return (await getRequest("contacts")).contacts
 
-proc subscriptions*: JsonNode =
+proc subscriptions*: Future[JsonNode] {.async.} =
     ## Channels that the user has subscribed to.
-    return getRequest("subscriptions").subscriptions
+    return (await getRequest("subscriptions")).subscriptions
 
-proc push*(args: PushRequest): JsonNode {.discardable.} =
+proc push*(args: PushRequest): Future[JsonNode] {.async, discardable.} =
     ## Push to a device/user or list existing pushes.
     var info = %[
         ( "type", %args.kind )
@@ -131,7 +135,7 @@ proc push*(args: PushRequest): JsonNode {.discardable.} =
         if args.items != nil:
             info.add("items", %args.items.map(proc (x: string): JsonNode = %x))
 
-    return postRequest("pushes", info)
+    return await postRequest("pushes", info)
 
 
 when isMainModule:
@@ -165,7 +169,7 @@ when isMainModule:
     proc setStoredToken =
         file_path.writeFile(token)
 
-    proc main =
+    proc main {.async.} =
         # Ensure we have API Token
         token = getStoredToken()
 
@@ -205,7 +209,7 @@ when isMainModule:
 
         if deviceIndex >= 0:
             # Retrieve device
-            allDevices = devices()
+            allDevices = await devices()
             if allDevices.len > deviceIndex:
                 args.device = allDevices[deviceIndex].iden.str
             else:
@@ -220,7 +224,8 @@ when isMainModule:
             args.body = note
         else:
             if allDevices == nil:
-                allDevices = devices()
+                allDevices = await devices()
+
             var i = 0
             echo "Devices:"
             for device in allDevices:
@@ -229,6 +234,6 @@ when isMainModule:
             return
 
         # Transmit
-        echo "Pushed to: ", push(args).receiver_email
+        echo "Pushed to: ", (await push(args)).receiver_email
 
-    main()
+    waitFor main()
