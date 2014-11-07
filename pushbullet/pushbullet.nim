@@ -35,11 +35,6 @@ type
 
 
 # Procedures
-proc headers(values: varargs[HeaderPair]): string =
-    return values.map(proc(x: HeaderPair): string =
-        x.key & ": " & x.value
-    ).join("\c\L")
-
 proc `%`(kind: PushType): JsonNode =
     ## Convert a PushType kind to JSON node
     return case kind:
@@ -65,8 +60,6 @@ proc getRequest(path: string): Future[JsonNode] {.async.} =
     ## GET request to pushbullet API
     let client = newAsyncHttpClient()
     client.headers["Authorization"] = "Bearer " & getToken()
-    # let header = headers(
-    #     ("Authorization", "Bearer " & getToken()))
 
     let response = await client.get(root_path & path)
 
@@ -74,10 +67,6 @@ proc getRequest(path: string): Future[JsonNode] {.async.} =
 
 proc postRequest(path: string, data: JsonNode): Future[JsonNode] {.async.} =
     ## POST request to pushbullet API
-    # let header = headers(
-    #     ("Authorization", "Bearer " & getToken()),
-    #     ("Content-Type", "application/json"))
-
     let body = $data
     let client = newAsyncHttpClient()
     client.headers["Authorization"] = "Bearer " & getToken()
