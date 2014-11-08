@@ -1,13 +1,13 @@
 ## Pushbullet API for Nim
-
+when not defined(ssl):
+    {.define: ssl.}
 
 # Imports
 import strutils, json, future, asyncdispatch, httpclient, strtabs
 
 
 # Fields
-const root_path = "https://api.pushbullet.com/v2/"
-const file_path = "token.cfg"
+const root_path   = "https://api.pushbullet.com/v2/"
 var token: string = nil
 
 
@@ -21,8 +21,7 @@ type
         title*: string
         body*: string
         case kind*: PushType
-        of Note:
-            nil
+        of Note: nil
         of Link:
             url*: string
         of Address:
@@ -67,11 +66,11 @@ proc getRequest(path: string): Future[JsonNode] {.async.} =
 
 proc postRequest(path: string, data: JsonNode): Future[JsonNode] {.async.} =
     ## POST request to pushbullet API
-    let body = $data
+    let body   = $data
     let client = newAsyncHttpClient()
-    client.headers["Authorization"] = "Bearer " & getToken()
-    client.headers["Content-Type"]  = "application/json"
-    client.headers["Content-Length"]  = $body.len
+    client.headers["Authorization"]  = "Bearer " & getToken()
+    client.headers["Content-Type"]   = "application/json"
+    client.headers["Content-Length"] = $body.len
 
     let response = await client.request(
         root_path & path, httpPOST, body)
@@ -133,6 +132,9 @@ when isMainModule:
     # Imports
     import parseopt2, uri
 
+    # Fields
+    const file_path = "token.cfg"
+
     # Procedures
     proc tryParseInt(value: string): int =
         try:
@@ -141,11 +143,9 @@ when isMainModule:
             return -1
 
     proc tryParseUrl(value: string): string =
-        try:
-            var uri = parseUri(value)
-            if uri.scheme != "":
-                return value
-        except: discard
+        var uri = parseUri(value)
+        if uri.scheme != "":
+            return value
         return nil
 
     proc getStoredToken: string =
@@ -169,9 +169,9 @@ when isMainModule:
             setStoredToken()
 
         # Parse command line
-        var deviceIndex: int = -1
+        var deviceIndex  = -1
         var note: string = nil
-        var url: string = nil
+        var url: string  = nil
 
         for kind, key, value in getopt():
             case kind:
@@ -210,7 +210,7 @@ when isMainModule:
             args.title = note
         elif note != nil:
             args.title = "Note"
-            args.body = note
+            args.body  = note
         else:
             if allDevices == nil:
                 allDevices = await devices()
