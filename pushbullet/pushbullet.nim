@@ -130,10 +130,11 @@ when isMainModule:
     ## App interface of library
 
     # Imports
-    import parseopt2, uri
+    import os, parseopt2, uri
 
     # Fields
-    const file_path = "token.cfg"
+    const file_name = "token.cfg"
+    let file_path   = joinPath(getAppDir(), file_name)
 
     # Procedures
     proc tryParseInt(value: string): int =
