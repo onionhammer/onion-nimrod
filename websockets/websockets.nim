@@ -123,7 +123,7 @@ proc read(ws: TWebSocketServer, client: TWebSocket, timeout = -1): TWebSocketMes
   #Read first two bytes
   read_next(2, timeout)
 
-  #Rretrieve the fin/rsv/opcode
+  #Retrieve the fin/rsv/opcode
   var total     = int(buffer[0])
   result.fin    = (total and 128) shr 7
   result.rsv    = (total and 127) shr 4

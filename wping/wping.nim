@@ -7,14 +7,14 @@
 ##
 ## TODO:
 ## - Add {startime} option
+## - Detect matching links and automatically download
+{.define: ssl.}
 
 # Imports
 import os, osproc, future, httpclient, strutils, parseopt2
 
 # Fields
-const numPings  = 5
-const pingDelay = 250
-var sleepTime*  = 20000 # in Milliseconds
+var sleepTime* = 20000 # in Milliseconds
 
 # Types
 type WPing* = object
@@ -22,32 +22,15 @@ type WPing* = object
     search*: string
 
 # Procedures
-proc normalize(value: string): string =
+proc normalize*(value: string): string =
     ## Normalize the input string, removing any spaces or periods
     value.replace(" ").replace(".").toLower
 
-proc checkMatch(ping: WPing, content: string): bool =
+proc checkMatch*(ping: WPing, content: string): bool =
     ## Checks if the content contains the ping search
     content.normalize.find(
         ping.search.normalize
     ) >= 0
-
-proc signal*(ping: WPing): WPing {.discardable.} =
-    ## Signal the user that a match was found.
-    result = ping
-    echo "Found: ", ping.search
-    for i in 0.. < numPings:
-        stdout.write char(0x7)
-        echo "found!"
-        sleep(pingDelay)
-
-proc open*(ping: WPing): WPing {.discardable.} =
-    ## Opens the searched `ping` address
-    result = ping
-    when defined(windows):
-        discard execProcess("explorer " & ping.address)
-    else:
-        discard execProcess("open " & ping.address)
 
 proc wait*(ping: WPing) : WPing {.discardable.} =
     ## Periodically pings the input address, testing if there
@@ -88,6 +71,6 @@ when isMainModule:
             search:  search
         )
 
-        ping.wait().open().signal()
+        ping.wait()
 
     main()
