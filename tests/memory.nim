@@ -13,9 +13,9 @@ method destroy*[T](obj: var StackPtr[T]) {.override.} =
 macro `.`*[T](left: StackPtr[T], right: expr): expr {.immediate.} =
     result = parseExpr($left & ".get." & right.strVal)
 
-template new*[T](obj: expr): expr =
+template new*(obj: expr): expr =
     # Allocate memory
-    var heapRef = cast[ptr type(obj)](alloc(sizeof(sizeof(type(obj)))))
+    var heapRef = cast[ptr type(obj)](alloc(sizeof(type(obj))))
 
     block:
         # TODO: Replace this with more efficient mechanism; destruct
