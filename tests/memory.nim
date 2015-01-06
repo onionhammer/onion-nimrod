@@ -34,8 +34,8 @@ proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
         parseExpr("new(i)")
     )
 
-    resultExpr.add(assignments)
-    resultExpr.add(ident"i")
+    resultExpr.add assignments
+    resultExpr.add ident"i"
 
     return newStmtList(
         newBlockStmt(newEmptyNode(), resultExpr))
@@ -84,7 +84,7 @@ proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
         )
     )
 
-    resultExpr.add(assignments)
+    resultExpr.add assignments
     resultExpr.add parseExpr("StackPtr[" & typeName & "](get:i)")
 
     return newStmtList(
@@ -125,7 +125,7 @@ when isMainModule:
     test1()
 
 # Test `stack`
-when true:
+when isMainModule:
     echo "Test `stack`:"
 
     type MyObject = object
