@@ -27,7 +27,7 @@ proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
         newNimNode(nnkVarSection).add(
             newNimNode(nnkIdentDefs).add(
                 ident"i",
-                newNimNode(nnkRefTy).add(typeName.ident),
+                parseExpr("ref " & typeName),
                 newEmptyNode()
             )
         ),
@@ -45,11 +45,14 @@ macro new*(obj: expr{nkObjConstr|nkCall}): expr =
 
 # `Stack` macro
 type StackPtr*[T] = object
-    get: ptr T
+    get*: ptr T
 
 method destroy*[T](obj: var StackPtr[T]) {.override.} =
     dealloc(obj.get)
     when isMainModule: echo "Destroyed"
+
+converter unwrap[T](obj: var StackPtr[T]): ptr T = obj.get
+converter unwrap[T](obj: var StackPtr[T]): T = obj.get[]
 
 macro `.`*[T](left: StackPtr[T], right: expr): expr {.immediate.} =
     result = parseExpr($left & ".get." & right.strVal)
@@ -95,11 +98,12 @@ macro stack*(obj: expr{nkObjConstr|nkCall}): expr =
 
 # Test `new`
 when isMainModule:
-    echo "Test `new`:"
-
     type MyType = object
         value: int
         other: ref MyType
+
+when isMainModule:
+    echo "Test `new`:"
 
     proc square(self: MyType|ref MyType): auto =
         if self.other != nil:
@@ -108,9 +112,9 @@ when isMainModule:
             self.value * self.value
 
     proc test1 =
-        var item1 = MyType(value: 5)     # Creates: MyType
+        let item1 = MyType(value: 5)     # Creates: MyType
         var item2 = new MyType(value: 5) # Creates: ref MyType
-        var item3 = new MyType(other: new MyType(value: 7))
+        let item3 = new MyType(other: new MyType(value: 7))
 
         assert(item2 != nil)
         assert(item1.value == 5)
@@ -118,7 +122,7 @@ when isMainModule:
 
         echo item1.square
         echo item2.square
-        echo item3.square
+        echo square(item3)
 
         assert(declared(i) == false, "`i` leaked to main scope")
 
@@ -128,12 +132,18 @@ when isMainModule:
 when isMainModule:
     echo "Test `stack`:"
 
-    type MyObject = object
-        value: int
+    proc cube(self: MyType): auto =
+        var value = self.value
+        value * value * value
 
     proc test2 =
-        var test1 = stack MyObject(value: 5)
+        var test1 = stack MyType(value: 5)
+        assert(test1.get != nil)
+        assert(declared(i) == false, "`i` leaked to main scope")
+        assert(declared(s) == false, "`s` leaked to main scope")
 
         echo test1.value
+        echo test1.cube
+        echo cube(test1)
 
     test2()
