@@ -24,14 +24,7 @@ proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
 
     # Compose resulting AST
     var resultExpr = newStmtList(
-        newNimNode(nnkVarSection).add(
-            newNimNode(nnkIdentDefs).add(
-                ident"i",
-                parseExpr("ref " & typeName),
-                newEmptyNode()
-            )
-        ),
-        parseExpr("new(i)")
+        parseExpr("var i = new(" & typeName & ")")
     )
 
     resultExpr.add assignments
@@ -133,8 +126,7 @@ when isMainModule:
     echo "Test `stack`:"
 
     proc cube(self: MyType): auto =
-        var value = self.value
-        value * value * value
+        self.value * self.value * self.value
 
     proc test2 =
         var test1 = stack MyType(value: 5)
