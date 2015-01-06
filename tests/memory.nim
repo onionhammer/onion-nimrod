@@ -24,7 +24,14 @@ proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
 
     # Compose resulting AST
     var resultExpr = newStmtList(
-        parseExpr("var i = new(" & typeName & ")")
+        newNimNode(nnkVarSection).add(
+            newNimNode(nnkIdentDefs).add(
+                ident"i",
+                parseExpr("ref " & typeName),
+                newEmptyNode()
+            )
+        ),
+        parseExpr("new(i)")
     )
 
     resultExpr.add assignments
@@ -120,6 +127,11 @@ when isMainModule:
         assert(declared(i) == false, "`i` leaked to main scope")
 
     test1()
+
+    proc test3 =
+        var item1 = new MyType(value: 5)
+
+    test3()
 
 # Test `stack`
 when isMainModule:
