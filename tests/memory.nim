@@ -6,6 +6,7 @@ import macros
 proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
     var typeName: string
     var assignments = newSeq[PNimrodNode]()
+    var iVar = genSym(nskVar)
 
     for i in obj.children:
         case i.kind
@@ -17,28 +18,25 @@ proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
                 if left == nil: left  = value
                 else:           right = value
             assignments.add newAssignment(
-                newDotExpr(ident"i", left),
+                newDotExpr(iVar, left),
                 right
             )
         else: discard
 
     # Compose resulting AST
-    var resultExpr = newStmtList(
+    result = newStmtList(
         newNimNode(nnkVarSection).add(
             newNimNode(nnkIdentDefs).add(
-                ident"i",
+                iVar,
                 parseExpr("ref " & typeName),
                 newEmptyNode()
             )
         ),
-        parseExpr("new(i)")
+        newCall(ident"new", iVar)
     )
 
-    resultExpr.add assignments
-    resultExpr.add ident"i"
-
-    return newStmtList(
-        newBlockStmt(newEmptyNode(), resultExpr))
+    result.add assignments
+    result.add iVar
 
 macro new*(obj: expr{nkObjConstr|nkCall}): expr =
     makeRef(obj)
@@ -47,19 +45,10 @@ macro new*(obj: expr{nkObjConstr|nkCall}): expr =
 type StackPtr*[T] = object
     get*: ptr T
 
-method destroy*[T](obj: var StackPtr[T]) {.override.} =
-    dealloc(obj.get)
-    when isMainModule: echo "Destroyed"
-
-converter unwrap[T](obj: var StackPtr[T]): ptr T = obj.get
-converter unwrap[T](obj: var StackPtr[T]): T = obj.get[]
-
-macro `.`*[T](left: StackPtr[T], right: expr): expr {.immediate.} =
-    result = parseExpr($left & ".get." & right.strVal)
-
 proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
     var typeName: string
     var assignments = newSeq[PNimrodNode]()
+    var iVar = genSym(nskVar)
 
     for i in obj.children:
         case i.kind
@@ -71,30 +60,46 @@ proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
                 if left == nil: left  = value
                 else:           right = value
             assignments.add newAssignment(
-                newDotExpr(ident"i", left),
+                newDotExpr(iVar, left),
                 right
             )
         else: discard
 
     # Compose resulting AST
-    var resultExpr = newStmtList(
+    result = newStmtList(
         newNimNode(nnkVarSection).add(
             newNimNode(nnkIdentDefs).add(
-                ident"i",
+                iVar,
                 newEmptyNode(),
                 parseExpr("cast[ptr " & typeName & "](alloc(sizeof(" & typeName & ")))"),
             )
         )
     )
 
-    resultExpr.add assignments
-    resultExpr.add parseExpr("StackPtr[" & typeName & "](get:i)")
+    result.add assignments
+    result.add newNimNode(nnkObjConstr).add(
+            parseExpr("StackPtr[" & typeName & "]"),
+            newNimNode(nnkExprColonExpr).add(
+                ident"get", iVar
+            )
+        )
 
-    return newStmtList(
-        newBlockStmt(newEmptyNode(), resultExpr))
+converter unwrap*[T](obj: var StackPtr[T]): ptr T = obj.get
+
+converter unwrap*[T](obj: var StackPtr[T]): T = obj.get[]
+
+method destroy*[T](obj: var StackPtr[T]) {.override.} =
+    dealloc(obj.get)
+    when isMainModule: echo "Destroyed"
+
+macro `.`*[T](left: StackPtr[T], right: expr): expr =
+    result = parseExpr($left & ".get." & right.strVal)
 
 macro stack*(obj: expr{nkObjConstr|nkCall}): expr =
     makePtr(obj)
+
+template stack*[T](obj: ptr T): StackPtr[T] =
+    StackPtr[T](get: obj)
 
 # Test `new`
 when isMainModule:
@@ -124,14 +129,7 @@ when isMainModule:
         echo item2.square
         echo square(item3)
 
-        assert(declared(i) == false, "`i` leaked to main scope")
-
     test1()
-
-    proc test3 =
-        var item1 = new MyType(value: 5)
-
-    test3()
 
 # Test `stack`
 when isMainModule:
@@ -143,8 +141,6 @@ when isMainModule:
     proc test2 =
         var test1 = stack MyType(value: 5)
         assert(test1.get != nil)
-        assert(declared(i) == false, "`i` leaked to main scope")
-        assert(declared(s) == false, "`s` leaked to main scope")
 
         echo test1.value
         echo test1.cube
