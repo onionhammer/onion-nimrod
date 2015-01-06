@@ -43,7 +43,7 @@ macro new*(obj: expr{nkObjConstr|nkCall}): expr =
 
 # `Stack` macro
 type StackPtr*[T] = object
-    get*: ptr T
+    get: ptr T
 
 proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
     var typeName: string
@@ -88,6 +88,8 @@ converter unwrap*[T](obj: var StackPtr[T]): ptr T = obj.get
 
 converter unwrap*[T](obj: var StackPtr[T]): T = obj.get[]
 
+proc getPtr*[T](obj: StackPtr[T]): ptr T = obj.get
+
 method destroy*[T](obj: var StackPtr[T]) {.override.} =
     dealloc(obj.get)
     when isMainModule: echo "Destroyed"
@@ -107,14 +109,17 @@ when isMainModule:
         value: int
         other: ref MyType
 
-when isMainModule:
-    echo "Test `new`:"
-
     proc square(self: MyType|ref MyType): auto =
         if self.other != nil:
             self.other.value * self.other.value
         else:
             self.value * self.value
+
+    proc cube(self: MyType|ref MyType): auto =
+        self.value * self.value * self.value
+
+when isMainModule:
+    echo "Test `new`:"
 
     proc test1 =
         let item1 = MyType(value: 5)     # Creates: MyType
@@ -127,6 +132,7 @@ when isMainModule:
 
         echo item1.square
         echo item2.square
+        echo item2.cube
         echo square(item3)
 
     test1()
@@ -135,14 +141,12 @@ when isMainModule:
 when isMainModule:
     echo "Test `stack`:"
 
-    proc cube(self: MyType): auto =
-        self.value * self.value * self.value
-
     proc test2 =
         var test1 = stack MyType(value: 5)
         assert(test1.get != nil)
 
         echo test1.value
+        echo test1.square
         echo test1.cube
         echo cube(test1)
 
