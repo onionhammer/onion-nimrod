@@ -105,17 +105,19 @@ template stack*[T](obj: ptr T): StackPtr[T] =
 
 # Test `new`
 when isMainModule:
-    type MyType = object
-        value: int
-        other: ref MyType
+    type
+        MyType = object
+            value: int
+            other: ref MyType
+        IMyType = MyType|ref MyType|ptr MyType
 
-    proc square(self: MyType|ref MyType): auto =
+    proc square(self: IMyType): auto =
         if self.other != nil:
             self.other.value * self.other.value
         else:
             self.value * self.value
 
-    proc cube(self: MyType|ref MyType): auto =
+    proc cube(self: IMyType): auto =
         self.value * self.value * self.value
 
 when isMainModule:
