@@ -2,8 +2,9 @@
 
 import macros
 
-# `New` macro
-proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
+proc deconstruct(obj: PNimrodNode):
+    tuple[name: string, ast: seq[PNimrodNode], i: PNimrodNode] {.compiletime.} =
+
     var typeName: string
     var assignments = newSeq[PNimrodNode]()
     var iVar = genSym(nskVar)
@@ -22,6 +23,13 @@ proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
                 right
             )
         else: discard
+
+    return (name: typeName, ast: assignments, i: iVar)
+
+
+# `New` macro
+proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
+    var (typeName, assignments, iVar) = deconstruct(obj)
 
     # Compose resulting AST
     result = newStmtList(
@@ -46,24 +54,7 @@ type AutoPtr*[T] = object
     get: ptr T
 
 proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
-    var typeName: string
-    var assignments = newSeq[PNimrodNode]()
-    var iVar = genSym(nskVar)
-
-    for i in obj.children:
-        case i.kind
-        of nnkIdent:
-            typeName = $i
-        of nnkExprColonExpr:
-            var left, right: PNimrodNode
-            for value in i.children:
-                if left == nil: left  = value
-                else:           right = value
-            assignments.add newAssignment(
-                newDotExpr(iVar, left),
-                right
-            )
-        else: discard
+    var (typeName, assignments, iVar) = deconstruct(obj)
 
     # Compose resulting AST
     result = newStmtList(
