@@ -41,8 +41,8 @@ proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
 macro new*(obj: expr{nkObjConstr|nkCall}): expr =
     makeRef(obj)
 
-# `Stack` macro
-type StackPtr*[T] = object
+# `Auto` macro
+type AutoPtr*[T] = object
     get: ptr T
 
 proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
@@ -78,30 +78,30 @@ proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
 
     result.add assignments
     result.add newNimNode(nnkObjConstr).add(
-            parseExpr("StackPtr[" & typeName & "]"),
+            parseExpr("AutoPtr[" & typeName & "]"),
             newNimNode(nnkExprColonExpr).add(
                 ident"get", iVar
             )
         )
 
-converter unwrap*[T](obj: var StackPtr[T]): ptr T = obj.get
+converter unwrap*[T](obj: var AutoPtr[T]): ptr T = obj.get
 
-converter unwrap*[T](obj: var StackPtr[T]): T = obj.get[]
+converter unwrap*[T](obj: var AutoPtr[T]): T = obj.get[]
 
-proc getPtr*[T](obj: StackPtr[T]): ptr T = obj.get
+proc getPtr*[T](obj: AutoPtr[T]): ptr T = obj.get
 
-method destroy*[T](obj: var StackPtr[T]) {.override.} =
+method destroy*[T](obj: var AutoPtr[T]) {.override.} =
     dealloc(obj.get)
     when isMainModule: echo "Destroyed"
 
-macro `.`*[T](left: StackPtr[T], right: expr): expr =
+macro `.`*[T](left: AutoPtr[T], right: expr): expr =
     result = parseExpr($left & ".get." & right.strVal)
 
-macro stack*(obj: expr{nkObjConstr|nkCall}): expr =
+macro push*(obj: expr{nkObjConstr|nkCall}): expr =
     makePtr(obj)
 
-template stack*[T](obj: ptr T): StackPtr[T] =
-    StackPtr[T](get: obj)
+template push*[T](obj: ptr T): AutoPtr[T] =
+    AutoPtr[T](get: obj)
 
 # Test `new`
 when isMainModule:
@@ -109,7 +109,7 @@ when isMainModule:
         MyType = object
             value: int
             other: ref MyType
-        IMyType = MyType|ref MyType|ptr MyType
+        IMyType = MyType|ref MyType|AutoPtr[MyType]
 
     proc square(self: IMyType): auto =
         if self.other != nil:
@@ -139,12 +139,12 @@ when isMainModule:
 
     test1()
 
-# Test `stack`
+# Test `push`
 when isMainModule:
-    echo "Test `stack`:"
+    echo "Test `push`:"
 
     proc test2 =
-        var test1 = stack MyType(value: 5)
+        var test1 = push MyType(value: 5)
         assert(test1.get != nil)
 
         echo test1.value
