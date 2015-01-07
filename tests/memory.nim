@@ -26,7 +26,6 @@ proc deconstruct(obj: PNimrodNode):
 
     return (name: typeName, ast: assignments, i: iVar)
 
-
 # `New` macro
 proc makeRef(obj: PNimrodNode): PNimrodNode {.compiletime.} =
     var (typeName, assignments, iVar) = deconstruct(obj)
@@ -94,7 +93,6 @@ macro push*(obj: expr{nkObjConstr|nkCall}): expr =
 template push*[T](obj: ptr T): AutoPtr[T] =
     AutoPtr[T](get: obj)
 
-# Test `new`
 when isMainModule:
     type
         MyType = object
@@ -111,6 +109,7 @@ when isMainModule:
     proc cube(self: IMyType): auto =
         self.value * self.value * self.value
 
+# Test `new`
 when isMainModule:
     echo "Test `new`:"
 
