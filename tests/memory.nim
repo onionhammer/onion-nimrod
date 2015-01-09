@@ -50,7 +50,7 @@ macro new*(obj: expr{nkObjConstr|nkCall}): expr =
 
 # `Auto` macro
 type AutoPtr*[T] = object
-    get: ptr T
+    get*: ptr T
 
 proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
     var (typeName, assignments, iVar) = deconstruct(obj)
@@ -74,8 +74,6 @@ proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
 converter unwrap*[T](obj: var AutoPtr[T]): ptr T = obj.get
 
 converter unwrap*[T](obj: var AutoPtr[T]): T = obj.get[]
-
-proc getPtr*[T](obj: AutoPtr[T]): ptr T = obj.get
 
 method destroy*[T](obj: var AutoPtr[T]) {.override.} =
     dealloc(obj.get)
