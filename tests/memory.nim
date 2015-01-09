@@ -12,7 +12,9 @@ proc deconstruct(obj: PNimrodNode):
     for i in obj.children:
         case i.kind
         of nnkIdent:
-            typeName = $i
+            typeName = repr(i)
+        of nnkBracketExpr:
+            typeName = repr(i)
         of nnkExprColonExpr:
             var left, right: PNimrodNode
             for value in i.children:
@@ -77,7 +79,6 @@ converter unwrap*[T](obj: var AutoPtr[T]): T = obj.get[]
 
 method destroy*[T](obj: var AutoPtr[T]) {.override.} =
     dealloc(obj.get)
-    when isMainModule: echo "Destroyed"
 
 macro `.`*[T](left: AutoPtr[T], right: expr): expr =
     result = parseExpr($left & ".get." & right.strVal)
