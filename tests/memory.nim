@@ -61,18 +61,15 @@ proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
             newNimNode(nnkIdentDefs).add(
                 iVar,
                 newEmptyNode(),
-                parseExpr("cast[ptr " & typeName & "](" & typeName & ".sizeof.alloc)"),
-            )
-        )
-    )
+                parseExpr("cast[ptr " & typeName & "](" & typeName & ".sizeof.alloc)")
+            )))
 
     result.add assignments
     result.add newNimNode(nnkObjConstr).add(
             parseExpr("AutoPtr[" & typeName & "]"),
             newNimNode(nnkExprColonExpr).add(
                 ident"get", iVar
-            )
-        )
+            ))
 
 converter unwrap*[T](obj: var AutoPtr[T]): ptr T = obj.get
 
