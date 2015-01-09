@@ -61,7 +61,7 @@ proc makePtr(obj: PNimrodNode): PNimrodNode {.compiletime.} =
             newNimNode(nnkIdentDefs).add(
                 iVar,
                 newEmptyNode(),
-                parseExpr("cast[ptr " & typeName & "](alloc(sizeof(" & typeName & ")))"),
+                parseExpr("cast[ptr " & typeName & "](" & typeName & ".sizeof.alloc)"),
             )
         )
     )
