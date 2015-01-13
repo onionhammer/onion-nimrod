@@ -19,11 +19,10 @@ export strtabs
 const magicString = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 const wwwNL       = "\r\L"
 
-
 ##Types
 type
   TWebSocketCallback*              = proc(ws: TWebSocketServer, client: TWebSocket, message: TWebSocketMessage)
-  TWebSocketBeforeConnectCallback* = proc(ws: TWebSocketServer, client: TWebSocket, headers: PStringTable): bool
+  TWebSocketBeforeConnectCallback* = proc(ws: TWebSocketServer, client: TWebSocket, headers: StringTableRef): bool
 
   TWebSocketMessage* = ref object
     fin*, rsv*, opCode*: int
@@ -32,8 +31,8 @@ type
 
   TWebSocket* = ref object
     case isAsync: bool
-    of true:  asyncSocket: PAsyncSocket
-    of false: socket: TSocket
+    of true:  asyncSocket: AsyncSocket
+    of false: socket: Socket
 
   TWebSocketServer* = ref object
     clients*:         seq[TWebSocket]
@@ -44,10 +43,10 @@ type
     onDisconnected*:  TWebSocketCallback
     case isAsync: bool
     of true:
-      asyncServer: PAsyncSocket
-      dispatcher: PDispatcher
+      asyncServer: AsyncSocket
+      dispatcher: Dispatcher
     of false:
-      server: TSocket
+      server: Socket
 
 
 ##Procedures
@@ -64,7 +63,7 @@ proc sendError*(client: TWebSocket, error = "Not Supported") =
     client.socket.close()
 
 
-proc checkUpgrade(client: TWebSocket, headers: PStringTable): bool =
+proc checkUpgrade(client: TWebSocket, headers: StringTableRef): bool =
   ## Validate request
   if headers["upgrade"] != "websocket":
     return false
@@ -73,7 +72,7 @@ proc checkUpgrade(client: TWebSocket, headers: PStringTable): bool =
   var clientKey = headers["Sec-WebSocket-Key"]
   var accept    = sha1.compute(clientKey & magicString).toBase64()
 
-  ## Send accept handshake response
+  # Send accept handshake response
   var response =
     "HTTP/1.1 101 Switching Protocols" & wwwNL &
     "Upgrade: websocket" & wwwNL &
@@ -250,7 +249,7 @@ proc handleClient(ws: var TWebSocketServer, client: TWebSocket) =
     ws.onMessage(ws, client, message)
 
 
-proc handleConnect(ws: var TWebSocketServer, client: TWebSocket, headers: PStringTable): bool =
+proc handleConnect(ws: var TWebSocketServer, client: TWebSocket, headers: StringTableRef): bool =
   # check if upgrade is requested (also sends response)
   if not checkUpgrade(client, headers):
     return false
@@ -266,7 +265,7 @@ proc handleConnect(ws: var TWebSocketServer, client: TWebSocket, headers: PStrin
   return true
 
 
-proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: PAsyncSocket): TWebSocket =
+proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: AsyncSocket): TWebSocket =
   var headers = newStringTable(modeCaseInsensitive)
   result      = TWebSocket(isAsync: true, asyncSocket: socket)
 
@@ -277,22 +276,22 @@ proc handleAsyncUpgrade(ws: var TWebSocketServer, socket: PAsyncSocket): TWebSoc
     result = nil
 
 
-proc handleAccept(ws: var TWebSocketServer, server: PAsyncSocket) =
+proc handleAccept(ws: var TWebSocketServer, server: AsyncSocket) =
   # accept incoming connection
   var client: TWebSocket
-  var socket: PAsyncSocket
+  var socket: AsyncSocket
   new(socket)
   accept(server, socket)
 
   var owner = ws
-  socket.handleRead = proc(socket: PAsyncSocket) =
+  socket.handleRead = proc(socket: AsyncSocket) {.closure, gcsafe.} =
     if client != nil: owner.handleClient(client)
     else: client = owner.handleAsyncUpgrade(socket)
 
   ws.dispatcher.register(socket)
 
 
-proc open*(address = "", port = TPort(8080), isAsync = true): TWebSocketServer =
+proc open*(address = "", port = Port(8080), isAsync = true): TWebSocketServer =
   ## open a websocket server
   var ws: TWebSocketServer
   new(ws)
@@ -303,17 +302,17 @@ proc open*(address = "", port = TPort(8080), isAsync = true): TWebSocketServer =
 
   if isAsync:
     ws.asyncServer = asyncSocket()
-    ws.asyncServer.setSockOpt(OptReuseAddr, True)
+    ws.asyncServer.setSockOpt(OptReuseAddr, true)
     bindAddr(ws.asyncServer, port, address)
     listen(ws.asyncServer)
 
     ws.asyncServer.handleAccept =
-      proc(s: PAsyncSocket) = ws.handleAccept(s)
+      proc(s: AsyncSocket) = ws.handleAccept(s)
 
   else:
     ws.server = socket()
-    ws.server.setSockOpt(OptReuseAddr, True)
-    if ws.server == InvalidSocket:
+    ws.server.setSockOpt(OptReuseAddr, true)
+    if ws.server == invalidSocket:
       websocketError("could not open websocket")
 
     bindAddr(ws.server, port, address)
@@ -328,7 +327,7 @@ proc run*(ws: var TWebSocketServer) =
 
   while true:
     # gather up all open sockets
-    var rsocks = newSeq[TSocket](ws.clients.len + 1)
+    var rsocks = newSeq[Socket](ws.clients.len + 1)
 
     rsocks[0] = ws.server
     for i in 0 .. ws.clients.len-1:
@@ -357,7 +356,7 @@ proc run*(ws: var TWebSocketServer) =
           client.sendError()
 
 
-proc register*(dispatcher: PDispatcher, ws: var TWebSocketServer) =
+proc register*(dispatcher: Dispatcher, ws: var TWebSocketServer) =
   ## Register the websocket with an asyncio dispatcher object
   if not ws.isAsync:
     websocketError("register() only works with async websocket servers")
@@ -397,4 +396,4 @@ when isMainModule:
     let dispatch = newDispatcher()
     dispatch.register(ws)
 
-    while dispatch.poll(): nil
+    while dispatch.poll(): discard
