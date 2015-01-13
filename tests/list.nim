@@ -1,4 +1,4 @@
-import memory, strutils, future
+import memory, strutils
 
 type
     Node*[T] = object
