@@ -1,3 +1,5 @@
+proc CPP {.importcpp.}
+
 import memory, strutils
 
 type
@@ -10,11 +12,11 @@ type
         tail: ref Node[T]
         length: int
 
-proc `$`*[T](node: ref Node[T]): string =
+proc `$`*(node: ref Node): string =
     if node != nil: $(node.item)
     else: ""
 
-proc len*[T](list: List[T]|ref List[T]): int =
+proc len*(list: List|ref List): int =
     list.length
 
 proc `[]`*[T](list: ref List[T], index: int): ref Node[T] =
@@ -25,7 +27,7 @@ proc `[]`*[T](list: ref List[T], index: int): ref Node[T] =
 
     raise newException(IndexError, "Index out of range")
 
-proc `$`*[T](list: ref List[T]): string =
+proc `$`*(list: ref List): string =
     result = ""
     for i in list:
         result &= $i
@@ -39,7 +41,7 @@ iterator items*[T](list: ref List[T]): ref Node[T] =
         yield node
         node = node.next
 
-proc add*[T](list: ref List[T], value: T) =
+proc add*[T](list: ref List, value: T) =
     var node = new Node[T](item: value)
 
     if list.head == nil:
