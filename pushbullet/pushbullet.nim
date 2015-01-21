@@ -13,7 +13,7 @@ var token: string = nil
 
 # Types
 type
-    PushType* = enum
+    PushType* {.pure.} = enum
         Note, Link, Address, Checklist
 
     PushRequest* = object
@@ -21,13 +21,13 @@ type
         title*: string
         body*: string
         case kind*: PushType
-        of Note: nil
-        of Link:
+        of PushType.Note: nil
+        of PushType.Link:
             url*: string
-        of Address:
+        of PushType.Address:
             name*: string
             address*: string
-        of Checklist:
+        of PushType.Checklist:
             items*: seq[string]
 
     HeaderPair = tuple[key, value: string]
@@ -37,10 +37,10 @@ type
 proc `%`(kind: PushType): JsonNode =
     ## Convert a PushType kind to JSON node
     return case kind:
-    of Note:      %"note"
-    of Link:      %"link"
-    of Address:   %"address"
-    of Checklist: %"checklist"
+    of PushType.Note:      %"note"
+    of PushType.Link:      %"link"
+    of PushType.Address:   %"address"
+    of PushType.Checklist: %"checklist"
 
 proc setToken*(value: string) =
     ## Set the API token
@@ -102,24 +102,24 @@ proc push*(args: PushRequest): Future[JsonNode] {.async, discardable.} =
     if args.device != nil:
         info.add("device_iden", %args.device)
 
-    if args.title != nil and args.kind in [ Note, Link, Checklist ]:
+    if args.title != nil and args.kind in [ PushType.Note, PushType.Link, PushType.Checklist ]:
         info.add("title", %args.title)
 
     case args.kind
-    of Note:
+    of PushType.Note:
         if args.body != nil:
             info.add("body", %args.body)
-    of Link:
+    of PushType.Link:
         if args.body != nil:
             info.add("body", %args.body)
         if args.url != nil:
             info.add("url", %args.url)
-    of Address:
+    of PushType.Address:
         if args.name != nil:
             info.add("name", %args.name)
         if args.address != nil:
             info.add("address", %args.address)
-    of Checklist:
+    of PushType.Checklist:
         if args.items != nil:
             info.add("items", %args.items.map(proc (x: string): JsonNode = %x))
 
@@ -194,7 +194,7 @@ when isMainModule:
                 # Do nothing
                 discard
 
-        var args = PushRequest(kind: Note)
+        var args = PushRequest(kind: PushType.Note)
         var allDevices: JsonNode
 
         if deviceIndex >= 0:
@@ -206,7 +206,7 @@ when isMainModule:
                 echo "Invalid device index"; return
 
         if url != nil:
-            args.kind  = Link
+            args.kind  = PushType.Link
             args.url   = url
             args.title = note
         elif note != nil:
