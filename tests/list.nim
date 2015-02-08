@@ -1,5 +1,3 @@
-proc CPP {.importcpp.}
-
 import memory, strutils
 
 type
