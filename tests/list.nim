@@ -1,20 +1,20 @@
-proc CPP {.importcpp.}
-
-import memory, strutils
+import strutils
 
 type
-    Node*[T] = object
+    NodeObj[T] = object
         item: T
-        next: ref Node[T]
+        next: Node[T]
+
+    Node*[T] = ref NodeObj[T]
 
     List*[T] = object
-        head: ref Node[T]
-        tail: ref Node[T]
+        head: Node[T]
+        tail: Node[T]
         length: int
 
     IList*[T] = List[T] | ref List[T]
 
-proc `$`*(node: ref Node): string =
+proc `$`*(node: Node): string =
     if node != nil: $(node.item)
     else: ""
 
@@ -29,7 +29,7 @@ proc `$`*(list: IList): string =
 proc len*(list: IList): int =
     list.length
 
-proc `[]`*[T](list: IList[T], index: int): ref Node[T] =
+proc `[]`*[T](list: IList[T], index: int): Node[T] =
     var i = 0
     for node in list:
         if i == index: return node
@@ -37,14 +37,14 @@ proc `[]`*[T](list: IList[T], index: int): ref Node[T] =
 
     raise newException(IndexError, "Index out of range")
 
-iterator items*[T](list: IList[T]): ref Node[T] =
+iterator items*[T](list: IList[T]): Node[T] =
     var node = list.head
     while node != nil:
         yield node
         node = node.next
 
 proc add*[T](list: var IList, value: T) =
-    var node = new Node[T](item: value)
+    var node = Node[T](item: value)
 
     if list.head == nil:
         list.head = node
@@ -58,7 +58,7 @@ proc add*[T](list: var IList, value: T) =
 when isMainModule:
 
     proc test1 =
-        var list = new List[int]()
+        var list = List[int]()
 
         for i in 1..10:
             list.add i
