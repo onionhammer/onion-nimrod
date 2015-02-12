@@ -1,4 +1,4 @@
-## pubsub.nim
+## subscribers.nim
 ##
 ## Basic event callback library
 ##
