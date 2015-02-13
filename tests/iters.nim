@@ -1,34 +1,32 @@
-from sequtils import toSeq
-
-type IEnumerable*[T] = object of RootObj
-  pos: int
-  data: seq[T]
-
-iterator items*[T](it: var IEnumerable[T]): T =
+iterator items*[T, K](it: var T): K =
     mixin current, moveNext
     while moveNext(it):
         yield current(it)
 
-proc moveNext*(it: var IEnumerable): bool =
+type List*[T] = object of RootObj
+  pos: int
+  data: seq[T]
+
+method moveNext*(it: var List): bool =
     if it.pos < it.data.len - 1:
         inc it.pos
         return true
 
-proc current*[T](it: var IEnumerable[T]): T =
+method current*(it: var List): auto =
     it.data[it.pos]
 
-proc asEnumerable*[T](it: seq[T]): IEnumerable[T] =
-    IEnumerable[T](pos: -1, data: it)
+proc asList*[T](it: seq[T]): auto =
+    List[T](pos: -1, data: it)
 
-proc asEnumerable*[T](it: openarray[T]): IEnumerable[T] =
+proc asList*[T](it: openarray[T]): auto =
     var items = newSeq[T](it.len)
     for i in 0.. < it.len:
         items[i] = it[i]
 
-    IEnumerable[T](pos: -1, data: items)
+    List[T](pos: -1, data: items)
 
 when isMainModule:
-    var x = @[4, 5, 6].asEnumerable()
+    var x = @[4, 5, 6].asList()
 
     for t in x:
         echo t; break
