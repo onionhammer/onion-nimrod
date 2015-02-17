@@ -1,3 +1,5 @@
+import strutils
+
 type Stream* = object of RootObj
     length*: int
     position*: int
@@ -13,26 +15,26 @@ method `>>`[T](src: Stream, dest: var T) =
 method close(this: Stream) =
     discard
 
+type IOStream = object of Stream
+
+method `<<`[T](dest: IOStream, src: T): IOStream {.discardable.} =
+    stdout.write(src)
+    return dest
+
+method `>>`(src: IOStream, dest: var string) =
+    dest = stdin.readline()
+
+method `>>`(src: IOStream, dest: var int) =
+    dest = stdin.readline().parseInt()
+
+const endl* = '\L'
+
+let
+    cout* = IOStream()
+    cin*  = IOStream()
+
 when isMainModule:
-
-    type IOStream = object of Stream
-
-    method `<<`[T](dest: IOStream, src: T): IOStream {.discardable.} =
-        stdout.write(src)
-        return dest
-
-    method `>>`[T](src: IOStream, dest: var T) =
-        # TODO - Implement me
-        # echo stdin.readBuffer(addr dest, sizeof(T))
-        discard
-
-    const endl = '\L'
-
-    let
-        cout* = IOStream()
-        cin*  = IOStream()
-
-    var n: int
+    var n: string
     cout << 25 << endl << "Grats\L"
     cin >> n
     cout << n << endl

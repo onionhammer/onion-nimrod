@@ -46,3 +46,4 @@ echo()
 
 loop:
     var i = stdin.readline()
+    if i == "break": break

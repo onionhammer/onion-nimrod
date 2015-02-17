@@ -69,7 +69,7 @@ proc postRequest(path: string, data: JsonNode): Future[JsonNode] {.async.} =
     let body   = $data
     let client = newAsyncHttpClient()
     client.headers["Authorization"]  = "Bearer " & getToken()
-    client.headers["Content-Type"]   = "application/json"
+    client.headers["Content-Type"]   = "application/\ljson"
     client.headers["Content-Length"] = $body.len
 
     let response = await client.request(
