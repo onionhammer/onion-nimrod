@@ -1,9 +1,0 @@
-[Package]
-name = "websockets"
-version = "0.1"
-author = "Erik O'Leary"
-description = "Websocket server library"
-license = "MIT"
-
-[Deps]
-Requires: "nimrod >= 0.9.3, sha1 >= 1.0"

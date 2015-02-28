@@ -8,7 +8,7 @@ type EWebSocket* = object of IOError
 
 ## Websocket utility procedures
 proc websocketError*(msg: string) {.noreturn.} =
-  ## raises an EWebSocket exception with message `msg`.
+  ## Raises an EWebSocket exception with message `msg`.
   var e: ref EWebSocket
   new(e)
   e.msg = msg
@@ -57,17 +57,3 @@ proc parseHTTPHeader*(client: Socket, headers: var StringTableRef): bool =
   ## parse HTTP header
   parseHTTPHeader(header):
     client.readLine(header)
-
-
-# This proc should not be needed once sockets.nim is fixed
-proc select_c*(rsocks: var seq[Socket], timeout = -1): int =
-  var rd = rsocks
-  result = sockets.select(rd, timeout)
-
-  var i = 0
-  var L = rsocks.len
-  while i < L:
-    if rsocks[i] in rd:
-      rsocks[i] = rsocks[L-1]; dec(L)
-    else: inc(i)
-  setLen(rsocks, L)
