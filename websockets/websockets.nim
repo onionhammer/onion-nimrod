@@ -37,6 +37,7 @@ type
   WebSocketServer* = ref object
     clients*:         seq[WebSocket]
     buffer:           cstring
+    strBuf:           string
     onBeforeConnect*: WebSocketBeforeConnectCallback
     onConnected*:     WebSocketCallback
     onMessage*:       WebSocketCallback
@@ -215,6 +216,7 @@ proc close*(ws: var WebSocketServer) =
     ws.server = nil
 
   ws.clients = nil
+  ws.strBuf  = nil
   ws.buffer  = nil
 
 
@@ -303,7 +305,8 @@ proc open*(address = "", port = Port(8080), isAsync = true): WebSocketServer =
 
   ws.isAsync = isAsync
   ws.clients = newSeq[WebSocket](2)
-  ws.buffer  = cstring(newString(4096))
+  ws.strBuf  = newString(4096)
+  ws.buffer  = cstring(ws.strBuf)
 
   if isAsync:
     ws.asyncServer = asyncSocket()
