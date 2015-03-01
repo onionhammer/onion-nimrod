@@ -113,7 +113,7 @@ proc read(ws: WebSocketServer, client: WebSocket, timeout = -1): WebSocketMessag
   template readLength(size: int) =
     ## Read next `size` bytes to determine length
     read_next(size, 0)
-    length = 0 #Reset the length to 0
+    length = 0 # Reset the length to 0
 
     let max = size * 8
     for i in 1 .. size:
@@ -302,8 +302,8 @@ proc open*(address = "", port = Port(8080), isAsync = true): WebSocketServer =
   new(ws)
 
   ws.isAsync = isAsync
-  ws.clients = newSeq[WebSocket]()
-  ws.buffer  = cstring(newString(4000))
+  ws.clients = newSeq[WebSocket](2)
+  ws.buffer  = cstring(newString(4096))
 
   if isAsync:
     ws.asyncServer = asyncSocket()
@@ -335,9 +335,10 @@ proc run*(ws: var WebSocketServer) =
     # gather up all open sockets
     var rsocks = newSeq[Socket](ws.clients.len + 1)
 
+    # Copy client sockets temporarily
     rsocks[0] = ws.server
-    for i in 0 .. < ws.clients.len:
-      rsocks[i + 1] = ws.clients[i].socket
+    copyMem(addr rsocks[1], addr ws.clients,
+      ws.clients.len * sizeof(Socket))
 
     # block thread until a socket has changed
     if select(rsocks, -1) != 0:
@@ -400,4 +401,5 @@ when isMainModule:
     let dispatch = newDispatcher()
     dispatch.register(ws)
 
-    while dispatch.poll(): discard
+    while dispatch.poll():
+      discard

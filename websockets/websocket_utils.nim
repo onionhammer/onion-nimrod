@@ -22,8 +22,6 @@ template parseHTTPHeader(header: expr, readline: stmt): stmt {.immediate.} =
   if header == "":
     return false
 
-  let newLine = {'\c', '\L'}
-
   while true:
     readline
 
@@ -38,7 +36,7 @@ template parseHTTPHeader(header: expr, readline: stmt): stmt {.immediate.} =
         return false
 
       i += header.skipWhiteSpace(i)
-      i += header.parseUntil(value, newLine, i)
+      i += header.parseUntil(value, {'\c', '\L'}, i)
       headers[key] = value
 
     else:
