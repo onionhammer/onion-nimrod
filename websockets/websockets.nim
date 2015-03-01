@@ -270,7 +270,9 @@ proc handleConnect(ws: var WebSocketServer, client: WebSocket, headers: StringTa
 
 proc handleAsyncUpgrade(ws: var WebSocketServer, socket: AsyncSocket): WebSocket =
   var headers = newStringTable(modeCaseInsensitive)
-  result      = WebSocket(isAsync: true, asyncSocket: socket)
+  new(result)
+  result.isAsync = true
+  result.asyncSocket = socket
 
   # parse HTTP headers & handle connection
   if not result.asyncSocket.parseHTTPHeader(headers) or
@@ -281,15 +283,15 @@ proc handleAsyncUpgrade(ws: var WebSocketServer, socket: AsyncSocket): WebSocket
 
 proc handleAccept(ws: var WebSocketServer, server: AsyncSocket) =
   # accept incoming connection
-  var client: WebSocket
   var socket: AsyncSocket
   new(socket)
   accept(server, socket)
 
+  var client: WebSocket
   var owner = ws
   socket.handleRead = proc(socket: AsyncSocket) {.closure, gcsafe.} =
     if client != nil: owner.handleClient(client)
-    else: client = owner.handleAsyncUpgrade(socket)
+    else:             client = owner.handleAsyncUpgrade(socket)
 
   ws.dispatcher.register(socket)
 

@@ -39,7 +39,6 @@ template parseHTTPHeader(header: expr, readline: stmt): stmt {.immediate.} =
 
       i += header.skipWhiteSpace(i)
       i += header.parseUntil(value, newLine, i)
-
       headers[key] = value
 
     else:
