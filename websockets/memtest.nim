@@ -1,17 +1,14 @@
 import asyncio, sockets
 import threadpool, locks, os, terminal, strutils
 
-type WebSocket = ref object
-    socket: AsyncSocket
-    dispatcher: Dispatcher
+const PASS_CONNECTIONS = 10_000
 
 var glock: TLock
 var numConnections {.guard: glock.} = 0
-const passConnections = 10_000
 
-proc handleAccept(server: AsyncSocket): AsyncSocket =
-    new(result)
-    accept(server, result)
+type WebSocket = ref object
+    socket: AsyncSocket
+    dispatcher: Dispatcher
 
 proc open: WebSocket =
     new(result)
@@ -22,32 +19,33 @@ proc open: WebSocket =
     bindAddr(result.socket, Port(8080), "")
 
     var ws = result
-    result.socket.handleAccept = proc(s: AsyncSocket) =
-        var socket = handleAccept(s)
+    result.socket.handleAccept = proc(server: AsyncSocket) =
+        var client: AsyncSocket
+        new(client)
+        accept(server, client)
 
-        socket.handleRead = proc(socket: AsyncSocket) {.closure, gcsafe.} =
+        client.handleRead = proc(socket: AsyncSocket) =
             # TODO - Read some data
 
             # Close the connection
             socket.close()
-            # socket.unregister()
 
-        ws.dispatcher.register(socket)
+        ws.dispatcher.register(client)
 
     # Start listening
     listen(result.socket)
 
 proc runClients =
     var nConnect = 0
-    while nConnect < passConnections:
+    while nConnect < PASS_CONNECTIONS:
         var client = socket()
         client.connect("", Port(8080))
-        client.send("hello world")
+        client.send("hello world\r\L")
         client.close()
         inc nConnect
         {.locks: [ glock ].}:
             numConnections = nConnect
-        sleep(1)
+        sleep(100)
 
 when isMainModule:
     var ws = open()
@@ -57,20 +55,20 @@ when isMainModule:
     # Run tests
     spawn runClients()
 
-    var maxOccupied = 0
+    var maxMem = 0
     while ws.dispatcher.poll():
         eraseScreen()
         setCursorPos 0,0
 
         {.locks: [ glock ].}:
-            var occupied = getOccupiedMem()
-            if occupied > maxOccupied: maxOccupied = occupied
+            let occupied = getOccupiedMem()
+            if occupied > maxMem: maxMem = occupied
 
             echo "Memory: ", occupied.formatSize(),
-                 " max: ", maxOccupied.formatSize()
-            echo "Clients: ", numConnections, " out of ", passConnections
+                 " max: ", maxMem.formatSize()
+            echo "Clients: ", numConnections, " out of ", PASS_CONNECTIONS
 
-            if numConnections == passConnections:
+            if numConnections == PASS_CONNECTIONS:
                 break
 
     sync()
