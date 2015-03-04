@@ -9,7 +9,7 @@
 
 
 ## Imports
-import sockets, asyncio, strutils, strtabs, parseutils, unsigned, sha1
+import sockets, asyncio, strutils, strtabs, parseutils, unsigned, sha1, terminal
 import websocket_utils
 
 export strtabs
@@ -291,34 +291,33 @@ proc register*(dispatcher: Dispatcher, ws: var WebSocketServer) =
   ws.dispatcher = dispatcher
 
 
-##Tests
+## Tests
 when isMainModule:
 
   proc onConnected(ws: WebSocketServer, client: WebSocket, message: WebSocketMessage) =
-    ws.send(client, "hello world!")
+    discard
 
   proc onMessage(ws: WebSocketServer, client: WebSocket, message: WebSocketMessage) =
-    echo "message: ", message.data
+    discard
 
   proc onDisconnected(ws: WebSocketServer, client: WebSocket, message: WebSocketMessage) =
-    echo "client left, remaining: ", ws.clients.len
-
-  echo "Running websocket test"
+    discard
 
   #Choose which type of websocket to test
-  const testAsync = true
-
   var ws            = open()
   ws.onConnected    = onConnected
   ws.onMessage      = onMessage
   ws.onDisconnected = onDisconnected
 
-  when not testAsync:
-    ws.run()
+  let dispatch = newDispatcher()
+  dispatch.register(ws)
 
-  else:
-    let dispatch = newDispatcher()
-    dispatch.register(ws)
+  var spin = [ '\\', '|', '/', '-' ]
+  var i = 0
+  while dispatch.poll():
+    eraseScreen()
+    setCursorPos 0,0
 
-    while dispatch.poll():
-      echo getOccupiedMem().formatSize()
+    stdout.write getOccupiedMem().formatSize()
+    echo " ", spin[i mod 4]
+    inc i
