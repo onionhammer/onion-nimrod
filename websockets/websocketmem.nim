@@ -320,4 +320,5 @@ when isMainModule:
 
     stdout.write getOccupiedMem().formatSize()
     echo " ", spin[i mod 4]
+    echo "clients: ", ws.clients.len
     inc i
