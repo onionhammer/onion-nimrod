@@ -1,10 +1,12 @@
 import asyncio, sockets
-import threadpool, locks, os, terminal, strutils, times
+import threadpool, locks#, channels
+import os, terminal, strutils, times
 
 const PASS_CONNECTIONS = 10_000
 
 var glock: TLock
 var numConnections {.guard: glock.} = 0
+var srvChannel = TChannel[string]()
 
 type WebSocket = ref object
     socket: AsyncSocket
@@ -59,15 +61,22 @@ proc runClients =
                 eraseScreen()
                 setCursorPos 0,0
 
+                # Read server memory
+                var serverMem = ""
+                while srvChannel.peek() > 0:
+                    serverMem = srvChannel.recv()
+
                 let occupied = getOccupiedMem()
                 if occupied > maxMem: maxMem = occupied
 
-                echo "Memory: ", occupied.formatSize(),
+                echo "Client Memory: ", occupied.formatSize(),
                      " max: ", maxMem.formatSize()
+                echo "Server Memory: ", serverMem
                 echo "Clients: ", numConnections, " out of ", PASS_CONNECTIONS
 
 
 when isMainModule:
+    srvChannel.open()
     var ws = open()
     ws.dispatcher = newDispatcher()
     ws.dispatcher.register(ws.socket)
@@ -77,7 +86,10 @@ when isMainModule:
 
     while ws.dispatcher.poll():
         {.locks: [ glock ].}:
+            srvChannel.send(getOccupiedMem().formatSize())
             if numConnections == PASS_CONNECTIONS:
                 break
 
     sync()
+    srvChannel.close()
+

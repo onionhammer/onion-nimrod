@@ -27,6 +27,9 @@ method `>>`(src: IOStream, dest: var string) =
 method `>>`(src: IOStream, dest: var int) =
     dest = stdin.readline().parseInt()
 
+method `>>`(src: IOStream, dest: var char) =
+    dest = stdin.readchar()
+
 const endl* = '\L'
 
 let
