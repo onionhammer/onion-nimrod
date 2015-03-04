@@ -1,5 +1,5 @@
 import asyncio, sockets
-import threadpool, locks, os, terminal, strutils
+import threadpool, locks, os, terminal, strutils, times
 
 const PASS_CONNECTIONS = 10_000
 
@@ -37,15 +37,35 @@ proc open: WebSocket =
 
 proc runClients =
     var nConnect = 0
+    var maxMem   = 0
+    var last     = 0.0
+
     while nConnect < PASS_CONNECTIONS:
         var client = socket()
         client.connect("", Port(8080))
         client.send("hello world\r\L")
         client.close()
+
         inc nConnect
         {.locks: [ glock ].}:
             numConnections = nConnect
-        sleep(100)
+
+            # Write output to screen
+            var next = cpuTime()
+            if next - last > 0.05 or nConnect == PASS_CONNECTIONS:
+                last = next
+
+                # Clear the screen
+                eraseScreen()
+                setCursorPos 0,0
+
+                let occupied = getOccupiedMem()
+                if occupied > maxMem: maxMem = occupied
+
+                echo "Memory: ", occupied.formatSize(),
+                     " max: ", maxMem.formatSize()
+                echo "Clients: ", numConnections, " out of ", PASS_CONNECTIONS
+
 
 when isMainModule:
     var ws = open()
@@ -55,19 +75,8 @@ when isMainModule:
     # Run tests
     spawn runClients()
 
-    var maxMem = 0
     while ws.dispatcher.poll():
-        eraseScreen()
-        setCursorPos 0,0
-
         {.locks: [ glock ].}:
-            let occupied = getOccupiedMem()
-            if occupied > maxMem: maxMem = occupied
-
-            echo "Memory: ", occupied.formatSize(),
-                 " max: ", maxMem.formatSize()
-            echo "Clients: ", numConnections, " out of ", PASS_CONNECTIONS
-
             if numConnections == PASS_CONNECTIONS:
                 break
 
