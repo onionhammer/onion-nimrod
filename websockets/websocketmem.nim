@@ -312,7 +312,7 @@ when isMainModule:
   let dispatch = newDispatcher()
   dispatch.register(ws)
 
-  var spin = [ '\\', '|', '/', '-' ]
+  const spin = [ '\\', '|', '/', '-' ]
   var i = 0
   while dispatch.poll():
     eraseScreen()
