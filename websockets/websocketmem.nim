@@ -30,9 +30,7 @@ type
     disconnected: bool
 
   WebSocket* = ref object
-    case isAsync: bool
-    of true:  asyncSocket: AsyncSocket
-    of false: socket: Socket
+    asyncSocket: AsyncSocket
 
   WebSocketServer* = ref object
     clients*:         seq[WebSocket]
@@ -42,26 +40,16 @@ type
     onConnected*:     WebSocketCallback
     onMessage*:       WebSocketCallback
     onDisconnected*:  WebSocketCallback
-    case isAsync: bool
-    of true:
-      asyncServer: AsyncSocket
-      dispatcher: Dispatcher
-    of false:
-      server: Socket
+    asyncServer: AsyncSocket
+    dispatcher: Dispatcher
 
 
 ## Procedures
 proc sendError*(client: WebSocket, error = "Not Supported") =
   # transmits forbidden message to client and closes socket
   let message = "HTTP/1.1 400 Bad Request" & wwwNL & wwwNL & error
-
-  if client.isAsync:
-    client.asyncSocket.send(message)
-    client.asyncSocket.close()
-
-  else:
-    client.socket.send(message)
-    client.socket.close()
+  client.asyncSocket.send(message)
+  client.asyncSocket.close()
 
 
 proc checkUpgrade(client: WebSocket, headers: StringTableRef): bool =
@@ -83,10 +71,7 @@ proc checkUpgrade(client: WebSocket, headers: StringTableRef): bool =
   if protocol != "":
     response.add("Sec-WebSocket-Protocol: " & protocol & wwwNL)
 
-  if client.isAsync:
-    client.asyncSocket.send(response & wwwNL)
-  else:
-    client.socket.send(response & wwwNL)
+  client.asyncSocket.send(response & wwwNL)
 
   return true
 
@@ -101,10 +86,7 @@ proc read(ws: WebSocketServer, client: WebSocket, timeout = -1): WebSocketMessag
 
   template read_next(size: int, tm): stmt =
     #Retrieve next chunk of message
-    if client.isAsync:
-      read = client.asyncSocket.recv(buffer, size, tm)
-    else:
-      read = client.socket.recv(buffer, size, tm)
+    read = client.asyncSocket.recv(buffer, size, tm)
 
     #If bytes read == 0 client disconnected
     if read == 0:
@@ -172,10 +154,7 @@ proc send*(ws: WebSocketServer, client: WebSocket, message: string) =
     buffer[0] = char(129)
     body
     copyMem(addr(buffer[size]), cstring(message), mLen)
-    if client.isAsync:
-      discard client.asyncSocket.send(buffer, size + mLen)
-    else:
-      discard client.socket.send(buffer, size + mLen)
+    discard client.asyncSocket.send(buffer, size + mLen)
 
   if mLen <= 125:
     put_header(2):
@@ -203,17 +182,10 @@ proc send*(ws: WebSocketServer, client: WebSocket, message: string) =
 proc close*(ws: var WebSocketServer) =
   ## closes the connection
   # close all client connections
-  if ws.isAsync:
-    for client in ws.clients:
-      client.asyncSocket.close()
-    ws.asyncServer.close()
-    ws.asyncServer = nil
-
-  else:
-    for client in ws.clients:
-      client.socket.close()
-    ws.server.close()
-    ws.server = nil
+  for client in ws.clients:
+    client.asyncSocket.close()
+  ws.asyncServer.close()
+  ws.asyncServer = nil
 
   ws.clients = nil
   ws.strBuf  = nil
@@ -230,12 +202,8 @@ proc close*(ws: var WebSocketServer, client: WebSocket) =
       ws.clients.del(i); break
     inc(i)
 
-  if ws.isAsync:
-    client.asyncSocket.close()
-    GC_unRef(client.asyncSocket.getSocket())
-
-  else:
-    client.socket.close()
+  client.asyncSocket.close()
+  GC_unRef(client.asyncSocket.getSocket())
 
 
 proc handleClient(ws: var WebSocketServer, client: WebSocket) =
@@ -273,7 +241,6 @@ proc handleConnect(ws: var WebSocketServer, client: WebSocket, headers: StringTa
 proc handleAsyncUpgrade(ws: var WebSocketServer, socket: AsyncSocket): WebSocket =
   var headers = newStringTable(modeCaseInsensitive)
   new(result)
-  result.isAsync = true
   result.asyncSocket = socket
 
   # parse HTTP headers & handle connection
@@ -298,79 +265,28 @@ proc handleAccept(ws: var WebSocketServer, server: AsyncSocket) =
   ws.dispatcher.register(socket)
 
 
-proc open*(address = "", port = Port(8080), isAsync = true): WebSocketServer =
+proc open*(address = "", port = Port(8080)): WebSocketServer =
   ## open a websocket server
   var ws: WebSocketServer
   new(ws)
 
-  ws.isAsync = isAsync
   ws.clients = newSeq[WebSocket](2)
   ws.strBuf  = newString(4096)
   ws.buffer  = cstring(ws.strBuf)
 
-  if isAsync:
-    ws.asyncServer = asyncSocket()
-    ws.asyncServer.setSockOpt(OptReuseAddr, true)
-    bindAddr(ws.asyncServer, port, address)
-    listen(ws.asyncServer)
+  ws.asyncServer = asyncSocket()
+  ws.asyncServer.setSockOpt(OptReuseAddr, true)
+  bindAddr(ws.asyncServer, port, address)
+  listen(ws.asyncServer)
 
-    ws.asyncServer.handleAccept =
-      proc(s: AsyncSocket) = ws.handleAccept(s)
-
-  else:
-    ws.server = socket()
-    ws.server.setSockOpt(OptReuseAddr, true)
-    if ws.server == invalidSocket:
-      websocketError("could not open websocket")
-
-    bindAddr(ws.server, port, address)
-    listen(ws.server)
+  ws.asyncServer.handleAccept =
+    proc(s: AsyncSocket) = ws.handleAccept(s)
 
   return ws
 
 
-proc run*(ws: var WebSocketServer) =
-  ## Begins listening for incoming websocket requests
-  if ws.isAsync: websocketError("run() only works with non-async websocket servers")
-
-  while true:
-    # TODO - Optimize this allocation
-    # gather up all open sockets
-    var rsocks = newSeq[Socket](ws.clients.len + 1)
-
-    # Copy client sockets temporarily
-    rsocks[0] = ws.server
-    copyMem(addr rsocks[1], addr ws.clients,
-      ws.clients.len * sizeof(Socket))
-
-    # block thread until a socket has changed
-    if select(rsocks, -1) != 0:
-
-      # if read socket is a client, pass to handleClient
-      for client in ws.clients:
-        if client.socket in rsocks:
-          ws.handleClient(client)
-
-      # if read socket is listener, pass to handleConnect
-      if ws.server in rsocks:
-
-        # Accept incoming connection
-        var headers = newStringTable(modeCaseInsensitive)
-        var client  = WebSocket(isAsync: false)
-        new(client.socket)
-        accept(ws.server, client.socket)
-
-        # parse HTTP headers & handle connection
-        if not client.socket.parseHTTPHeader(headers) or
-           not ws.handleConnect(client, headers):
-          client.sendError()
-
-
 proc register*(dispatcher: Dispatcher, ws: var WebSocketServer) =
   ## Register the websocket with an asyncio dispatcher object
-  if not ws.isAsync:
-    websocketError("register() only works with async websocket servers")
-
   dispatcher.register(ws.asyncServer)
   ws.dispatcher = dispatcher
 
@@ -392,7 +308,7 @@ when isMainModule:
   #Choose which type of websocket to test
   const testAsync = true
 
-  var ws            = open(isAsync = testAsync)
+  var ws            = open()
   ws.onConnected    = onConnected
   ws.onMessage      = onMessage
   ws.onDisconnected = onDisconnected
