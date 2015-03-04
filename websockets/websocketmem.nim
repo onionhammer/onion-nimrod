@@ -295,7 +295,7 @@ proc register*(dispatcher: Dispatcher, ws: var WebSocketServer) =
 when isMainModule:
 
   proc onConnected(ws: WebSocketServer, client: WebSocket, message: WebSocketMessage) =
-    discard
+    ws.send(client, "hello world!")
 
   proc onMessage(ws: WebSocketServer, client: WebSocket, message: WebSocketMessage) =
     discard
