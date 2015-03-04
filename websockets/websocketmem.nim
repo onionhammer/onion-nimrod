@@ -405,4 +405,4 @@ when isMainModule:
     dispatch.register(ws)
 
     while dispatch.poll():
-      echo getOccupiedMem()
+      echo getOccupiedMem().formatSize()
