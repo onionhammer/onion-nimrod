@@ -1,8 +1,8 @@
 import asyncio, sockets
-import threadpool, locks#, channels
+import threadpool, locks
 import os, terminal, strutils, times
 
-const PASS_CONNECTIONS = 10_000
+const PASS_CONNECTIONS = 100_000
 
 var glock: TLock
 var numConnections {.guard: glock.} = 0
