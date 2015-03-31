@@ -13,7 +13,7 @@ var token: string = nil
 
 # Types
 type
-    PushType* {.pure.} = enum
+    PushType* = enum
         Note, Link, Address, Checklist
 
     PushRequest* = object
