@@ -140,7 +140,7 @@ when isMainModule:
     # Procedures
     proc tryParseInt(value: string): int =
         try:
-            return value.parseInt()
+            return parseInt(value)
         except:
             return -1
 
