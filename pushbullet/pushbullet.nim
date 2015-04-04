@@ -10,7 +10,6 @@ import strutils, json, future, asyncdispatch, httpclient, strtabs
 const root_path   = "https://api.pushbullet.com/v2/"
 var token: string = nil
 
-
 # Types
 type
     PushType* {.pure.} = enum
@@ -69,7 +68,7 @@ proc postRequest(path: string, data: JsonNode): Future[JsonNode] {.async.} =
     let body   = $data
     let client = newAsyncHttpClient()
     client.headers["Authorization"]  = "Bearer " & getToken()
-    client.headers["Content-Type"]   = "application/\ljson"
+    client.headers["Content-Type"]   = "application/json"
     client.headers["Content-Length"] = $body.len
 
     let response = await client.request(
@@ -121,7 +120,7 @@ proc push*(args: PushRequest): Future[JsonNode] {.async, discardable.} =
             info.add("address", %args.address)
     of PushType.Checklist:
         if args.items != nil:
-            info.add("items", %args.items.map(proc (x: string): JsonNode = %x))
+            info.add("items", %args.items.map((x: string) => %x))
 
     return await postRequest("pushes", info)
 
@@ -145,9 +144,8 @@ when isMainModule:
 
     proc tryParseUrl(value: string): string =
         var uri = parseUri(value)
-        if uri.scheme != "":
-            return value
-        return nil
+        return if uri.scheme != "": value
+               else: nil
 
     proc getStoredToken: string =
         var file: TFile
