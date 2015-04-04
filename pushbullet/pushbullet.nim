@@ -54,6 +54,8 @@ template `.`*(js: JsonNode, field: string): JsonNode =
     ## Automatically retrieve json node
     js[field]
 
+converter jsonToStr*(js: JsonNode): string = js.str
+
 proc getRequest(path: string): Future[JsonNode] {.async.} =
     ## GET request to pushbullet API
     let client = newAsyncHttpClient()
@@ -199,7 +201,7 @@ when isMainModule:
             # Retrieve device
             allDevices = await devices()
             if allDevices.len > deviceIndex:
-                args.device = allDevices[deviceIndex].iden.str
+                args.device = allDevices[deviceIndex].iden
             else:
                 echo "Invalid device index"; return
 
@@ -217,7 +219,7 @@ when isMainModule:
             var i = 0
             echo "Devices:"
             for device in allDevices:
-                echo "[$1] = $2" % [$i, device.nickname.str]
+                echo "[$1] = $2" % [$i, device.nickname]
                 inc i
             return
 
