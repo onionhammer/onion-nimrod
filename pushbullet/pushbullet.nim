@@ -10,7 +10,6 @@ import strutils, json, future, asyncdispatch, httpclient, strtabs
 const root_path   = "https://api.pushbullet.com/v2/"
 var token: string = nil
 
-
 # Types
 type
     PushType* = enum
@@ -52,6 +51,8 @@ proc getToken: string =
 template `.`*(js: JsonNode, field: string): JsonNode =
     ## Automatically retrieve json node
     js[field]
+
+converter jsonToStr*(js: JsonNode): string = js.str
 
 proc getRequest(path: string): Future[JsonNode] {.async.} =
     ## GET request to pushbullet API
@@ -119,7 +120,7 @@ proc push*(args: PushRequest): Future[JsonNode] {.async, discardable.} =
             info.add("address", %args.address)
     of PushType.Checklist:
         if args.items != nil:
-            info.add("items", %args.items.map(proc (x: string): JsonNode = %x))
+            info.add("items", %args.items.map((x: string) => %x))
 
     return await postRequest("pushes", info)
 
@@ -137,15 +138,14 @@ when isMainModule:
     # Procedures
     proc tryParseInt(value: string): int =
         try:
-            return value.parseInt()
+            return parseInt(value)
         except:
             return -1
 
     proc tryParseUrl(value: string): string =
         var uri = parseUri(value)
-        if uri.scheme != "":
-            return value
-        return nil
+        return if uri.scheme != "": value
+               else: nil
 
     proc getStoredToken: string =
         var file: TFile
@@ -199,7 +199,7 @@ when isMainModule:
             # Retrieve device
             allDevices = await devices()
             if allDevices.len > deviceIndex:
-                args.device = allDevices[deviceIndex].iden.str
+                args.device = allDevices[deviceIndex].iden
             else:
                 echo "Invalid device index"; return
 
@@ -217,7 +217,7 @@ when isMainModule:
             var i = 0
             echo "Devices:"
             for device in allDevices:
-                echo "[$1] = $2" % [$i, device.nickname.str]
+                echo "[$1] = $2" % [$i, device.nickname]
                 inc i
             return
 
