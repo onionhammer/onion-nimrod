@@ -30,8 +30,6 @@ type
         of PushType.Checklist:
             items*: seq[string]
 
-    HeaderPair = tuple[key, value: string]
-
 
 # Procedures
 proc `%`(kind: PushType): JsonNode =
