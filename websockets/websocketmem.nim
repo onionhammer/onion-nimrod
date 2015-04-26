@@ -79,7 +79,6 @@ proc checkUpgrade(client: WebSocket, headers: StringTableRef): bool =
 proc read(ws: WebSocketServer, client: WebSocket, timeout = -1): WebSocketMessage =
   var read, length: int
   var buffer = ws.buffer
-  zeroMem(buffer, buffer.len)
 
   # If we get to the end of the proc, client is still connected
   new(result)
@@ -203,7 +202,6 @@ proc close*(ws: var WebSocketServer, client: WebSocket) =
     inc(i)
 
   client.asyncSocket.close()
-  GC_unRef(client.asyncSocket.getSocket())
 
 
 proc handleClient(ws: var WebSocketServer, client: WebSocket) =
