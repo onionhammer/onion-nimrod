@@ -1,5 +1,8 @@
 import json, times, strutils
 
+# Run
+# ./jbench;python jbench.py
+
 let jsonData = json.parseFile("data.json")
 var result = ""
 
