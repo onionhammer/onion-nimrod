@@ -5,7 +5,6 @@ when not defined(ssl):
 # Imports
 import strutils, json, future, asyncdispatch, httpclient, strtabs
 
-
 # Fields
 const root_path   = "https://api.pushbullet.com/v2/"
 var token: string = nil
@@ -29,11 +28,10 @@ type
         of PushType.Checklist:
             items*: seq[string]
 
-
 # Procedures
 proc `%`(kind: PushType): JsonNode =
     ## Convert a PushType kind to JSON node
-    return case kind:
+    case kind:
     of PushType.Note:      %"note"
     of PushType.Link:      %"link"
     of PushType.Address:   %"address"
@@ -52,7 +50,9 @@ template `.`*(js: JsonNode, field: string): JsonNode =
     ## Automatically retrieve json node
     js[field]
 
-converter jsonToStr*(js: JsonNode): string = js.str
+converter jsonToStr*(js: JsonNode): string =
+    ## Automatically convert json node to string
+    js.str
 
 proc getRequest(path: string): Future[JsonNode] {.async.} =
     ## GET request to pushbullet API
@@ -95,8 +95,7 @@ proc subscriptions*: Future[JsonNode] {.async.} =
 proc push*(args: PushRequest): Future[JsonNode] {.async, discardable.} =
     ## Push to a device/user or list existing pushes.
     var info = %[
-        ( "type", %args.kind )
-    ]
+        ( "type", %args.kind )]
 
     if args.device != nil:
         info.add("device_iden", %args.device)
@@ -137,15 +136,12 @@ when isMainModule:
 
     # Procedures
     proc tryParseInt(value: string): int =
-        try:
-            return parseInt(value)
-        except:
-            return -1
+        try:    parseInt(value)
+        except: -1
 
     proc tryParseUrl(value: string): string =
-        var uri = parseUri(value)
-        return if uri.scheme != "": value
-               else: nil
+        if parseUri(value).scheme != "": value
+        else: nil
 
     proc getStoredToken: string =
         var file: TFile
